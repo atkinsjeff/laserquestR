@@ -8,7 +8,7 @@ read.pcl <- function(f) {
      df = df[,c(3, 1, 2)]
      df
 }
-
+# this function mirrors the read.table, read.csv function, but is written for pcl data
 
 pcl.diagnostic.plot <- function(df, site, max.height) {
      plot(df$index,
@@ -19,4 +19,4 @@ pcl.diagnostic.plot <- function(df, site, max.height) {
           xlab = "Index Value")
      
 }
-# this function mirrors the read.table, read.csv function, but is written for pcl data
+
