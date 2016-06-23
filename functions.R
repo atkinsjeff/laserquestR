@@ -96,6 +96,9 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
      # Make sure we didn't make too many chunks in any segment
      stopifnot(max(results$chunk_num) < 11)
      
+     # Code segment to create ybin and xbin
+     results$ybin <- results$chunk_num * results$seg_num
+     results$xbin <- 
      # Check final output
      if (DEBUG) head(results)
      if (DEBUG) tail(results)
