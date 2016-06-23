@@ -9,6 +9,25 @@ filename <- "SWBR_plot_four_run_one.CSV"
 DEBUG <- FALSE
 write_out <- FALSE
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ##########################################
 ##########################################
 # Function to read in a pcl text file and
@@ -142,14 +161,6 @@ marker.locations <- df[which(df$return_distance == marker), ]
 (marker.locations)
 
 
-### now trying to cycle through the data to make section ids that will then be used to calculate x bins
-for( i in 1:dim(df[1]))    {
-     section_id = 0
-     df$section_id = section_id
-     if (df$index == marker) {
-          section_id = section_id + 1}
-
-}
 
 #count between markers, count in index space, you have 1-10 in index space. 
 
@@ -162,36 +173,3 @@ str(df.out[[2]])
 
 c1 <- cut(df.out[[1]]$index, breaks = seq(1, 10, by = 1))
 
-##################
-## generate data for clinical trial example
-clinical.trial <-
-     data.frame(patient = 1:100,              
-                age = rnorm(100, mean = 60, sd = 8),
-                year.enroll = sample(paste("19", 85:99, sep = ""),
-                                     100, replace = TRUE))
-summary(clinical.trial)
-# patient            age         year.enroll
-# Min.   :  1.00   Min.   :41.18   1991   :12  
-# 1st Qu.: 25.75   1st Qu.:52.99   1988   :11  
-# Median : 50.50   Median :60.08   1985   : 9  
-# Mean   : 50.50   Mean   :59.67   1993   : 7  
-# 3rd Qu.: 75.25   3rd Qu.:65.67   1995   : 7  
-# Max.   :100.00   Max.   :76.40   1997   : 7  
-# (Other):47 
-
-c1 <- cut(clinical.trial$age, breaks = 4)
-table(c1)
-
-age.cat <- function(x, lower = 0, upper, by = 10,
-                    sep = "-", above.char = "+") {
-     
-     labs <- c(paste(seq(lower, upper - by, by = by),
-                     seq(lower + by - 1, upper - 1, by = by),
-                     sep = sep),
-               paste(upper, above.char, sep = ""))
-     
-     cut(floor(x), breaks = c(seq(lower, upper, by = by), Inf),
-         right = FALSE, labels = labs)
-}
-
-table(age.cat(clinical.trial$age, upper = 70))
