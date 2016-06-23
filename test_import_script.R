@@ -15,3 +15,4 @@ test.data <- read_and_check_pcl(data_dir, filename, DEBUG = FALSE)
 test.data.binned <- split_transects_from_pcl(test.data)
 
 head(test.data.binned)
+
