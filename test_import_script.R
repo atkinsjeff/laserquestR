@@ -12,6 +12,7 @@ test.data <- read_and_check_pcl(data_dir, filename, DEBUG = TRUE)
 
 test.2 <- read.pcl("./data/osbs_28_west.CSV")
 test.2 <- add_sky_hits(test.2)
+test.2 <- add_can_hits(test.2)
 test.2 <- add_markers(test.2)
 head(test.2)
 pcl.diagnostic.plot(test.2, "OSBS", 15)
@@ -28,7 +29,9 @@ test.data.binned <- split_transects_from_pcl(test.2)
 head(test.data.binned)
 summary(test.data.binned)
 
-make_matrix(test.data.binned)
+m1 <- make_matrix(test.data.binned)
+
+m.sky <- just_the_hits(test.data.binned)
 
 
 ####rry, the output is here:

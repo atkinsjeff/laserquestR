@@ -29,6 +29,17 @@ add_sky_hits <- function(df) {
      df
 }
 
+add_can_hits <- function(df) {
+     for(i  in 1:nrow(df)){
+          if (is.na(df$return_distance[i]) == TRUE) {
+               df$can_hit[i] = FALSE
+          }else{
+               df$can_hit[i] = TRUE
+          }
+     }
+     df
+}
+
 add_markers <- function(df) {
      for (i in 1:nrow(df)){
           if (df$return_distance[i] == -99999999) {
@@ -159,12 +170,22 @@ make_matrix <- function(df) {
      m <- m[!m$ybin < 0, ]
      n <- aggregate(sky_hit ~ xbin, data = df, FUN = sum)
      m <- merge(m, n, by = c("xbin"))
-     plyr::rename(m, c("xbin" = "xbin", "ybin" = "ybin", "return_distance" = "lidar_hits", "sky_hits" = "sky_hits") )
+     plyr::rename(m, c("xbin" = "xbin", "ybin" = "ybin", "return_distance" = "lidar_hits", "sky_hit" = "sky_hits") )
 
 }
    
 make_sky <- function(df) {
-    aggregate(sky_hit ~ xbin, data = df, FUN = sum)
+     aggregate(sky_hit ~ xbin, data = df, FUN = sum)     
+}
+
+make_can <- function(df) {
+     aggregate(can_hit ~ xbin, data = df, FUN = sum)     
+}
+
+just_the_hits <- function(df) {
+     p <- make_sky(df)
+     q <- make_can(df)
+     merge(p, q)
      
 }
 # 
