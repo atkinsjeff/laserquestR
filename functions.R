@@ -1,5 +1,13 @@
 
 
+#
+#Libraries
+library(plyr)
+library(dplyr)
+library(magrittr)
+
+
+
 ######################3
 # Import PCL data function
 read.pcl <- function(f) {
@@ -9,6 +17,27 @@ read.pcl <- function(f) {
      df
 }
 
+# this function accounts for the NAs that are in return distance which are actually the sky hits (i.e. when the lidar does not record a canopy hit)
+add_sky_hits <- function(df) {
+     for(i  in 1:nrow(df)){
+     if (is.na(df$return_distance[i]) == TRUE) {
+          df$sky_hit[i] = TRUE
+     }else{
+          df$sky_hit[i] = FALSE
+     }
+     }
+     df
+}
+
+add_markers <- function(df) {
+     for (i in 1:nrow(df)){
+          if (df$return_distance[i] == -99999999) {
+               df$marker[i] = TRUE
+          }else{
+               df$marker[i] = FALSE
+          }
+     }
+}
 
 # this function mirrors the read.table, read.csv function, but is written for pcl data
 
@@ -38,7 +67,7 @@ read_and_check_pcl <- function(data_dir, filename, DEBUG = FALSE) {
      
      # Load data
      pcl.in <- read.pcl(paste0(data_dir, filename))
-     
+     pcl.in <- add_sky_hits(pcl.in)
      # Sanity checks
      if (DEBUG) head(pcl.in)
      if (DEBUG) pcl.diagnostic.plot(pcl.in, "SWBR", 25)
@@ -67,13 +96,16 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
      segment_num <- 0
      
      # Check for how many segment boundaries we have (should be 5)
-     stopifnot(length(pcl_data[pcl_data$return_distance == -99999999, 2]) == 5)
+     #stopifnot(length(pcl_data[pcl_data$return_distance == -99999999, 2]) = 5)
+     stopifnot(length(which(pcl_data$return_distance < -9999)) == 5)
+     
      
      # Walk through rows and add the segment number in a new column
      for (i in 1:nrow(pcl_data)) {
           pcl_data$seg_num[i] <- segment_num
-          if (pcl_data$return_distance[i] == -99999999) {
-               segment_num <- segment_num + 1
+          
+          if(pcl_data$return_distance[i] <= -9999 & !is.na(pcl_data$return_distance[i])){
+               segment_num <- segment_num + 1  
           }
      }
      
@@ -87,7 +119,8 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
      # but we're flexible here. Uses cut() with labels = FALSE to return
      # a vector of integer categories for each "chunk" within each segment
      # This should go from 1-10 and be spaced evenly in "index" space
-     for (i in 1:(max(pcl_data$seg_num) - 1)) {
+     # for (i in 1:(max(pcl_data$seg_num) - 1)) {
+      for (i in 1:(max(pcl_data$seg_num))) {
           this_segment <- subset(pcl_data, pcl_data$seg_num == i)
           this_segment$chunk_num <- cut(this_segment$index, 10, labels = FALSE)
           results <- rbind(results, this_segment)
@@ -96,6 +129,9 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
      # Make sure we didn't make too many chunks in any segment
      stopifnot(max(results$chunk_num) < 11)
      
+     # Code segment to create ybin and xbin
+     results$xbin <- ((results$seg_num * 10) - 10)  +results$chunk_num
+     results$ybin <- floor(results$return_distance)
      # Check final output
      if (DEBUG) head(results)
      if (DEBUG) tail(results)
@@ -114,15 +150,34 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
 # and returns results sorted by chunk 1-4
 ##########################################
 ##########################################
-summarize_categorized_pcl <- function(pcl_data) {
-     
-     # Aggregate a categorized pcl transect and calculate mean, sd, and count for each chunk of each segment
-     aggregated_result <- aggregate(cbind(return_distance, intensity) ~ seg_num + chunk_num, data = pcl_data,
-                                    FUN = function(x) c(mean = mean(x), sd = sd(x))) 
-     aggregated_result[order(aggregated_result$seg_num), ]
+##########################################
+##########################################
+
+
+make_matrix <- function(df) {
+     m <- aggregate(return_distance ~ xbin + ybin, data = df, FUN = length)
+     m <- m[!m$ybin < 0, ]
+     n <- aggregate(sky_hit ~ xbin, data = df, FUN = sum)
+     m <- merge(m, n, by = c("xbin"))
+     plyr::rename(m, c("xbin" = "xbin", "ybin" = "ybin", "return_distance" = "lidar_hits", "sky_hits" = "sky_hits") )
+
 }
-
-# Do all the things
-summarize_categorized_pcl(split_transects_from_pcl(read_and_check_pcl(data_dir, filename)))
-
-
+   
+make_sky <- function(df) {
+    aggregate(sky_hit ~ xbin, data = df, FUN = sum)
+     
+}
+# 
+# 
+# summarize_categorized_pcl <- function(pcl_data) {
+#      
+#      # Aggregate a categorized pcl transect and calculate mean, sd, and count for each chunk of each segment
+#      aggregated_result <- aggregate(cbind(return_distance, intensity) ~ seg_num + chunk_num, data = pcl_data, FUN = function(x) c(mean = mean(x), sd = sd(x))) 
+#      aggregated_result[order(aggregated_result$seg_num), ]
+# }
+# 
+# 
+# # Do all the things
+# summarize_categorized_pcl(split_transects_from_pcl(read_and_check_pcl(data_dir, filename)))
+# 
+# 
