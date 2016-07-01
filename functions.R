@@ -1,5 +1,13 @@
 
 
+#
+#Libraries
+library(plyr)
+library(dplyr)
+library(magrittr)
+
+
+
 ######################3
 # Import PCL data function
 read.pcl <- function(f) {
@@ -142,16 +150,34 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
 # and returns results sorted by chunk 1-4
 ##########################################
 ##########################################
-summarize_categorized_pcl <- function(pcl_data) {
-     
-     # Aggregate a categorized pcl transect and calculate mean, sd, and count for each chunk of each segment
-     aggregated_result <- aggregate(cbind(return_distance, intensity) ~ seg_num + chunk_num, data = pcl_data,
-                                    FUN = function(x) c(mean = mean(x), sd = sd(x))) 
-     aggregated_result[order(aggregated_result$seg_num), ]
+##########################################
+##########################################
+
+
+make_matrix <- function(df) {
+     m <- aggregate(return_distance ~ xbin + ybin, data = df, FUN = length)
+     m <- m[!m$ybin < 0, ]
+     n <- aggregate(sky_hit ~ xbin, data = df, FUN = sum)
+     m <- merge(m, n, by = c("xbin"))
+     plyr::rename(m, c("xbin" = "xbin", "ybin" = "ybin", "return_distance" = "lidar_hits", "sky_hits" = "sky_hits") )
+
 }
-
-
-# Do all the things
-summarize_categorized_pcl(split_transects_from_pcl(read_and_check_pcl(data_dir, filename)))
-
-
+   
+make_sky <- function(df) {
+    aggregate(sky_hit ~ xbin, data = df, FUN = sum)
+     
+}
+# 
+# 
+# summarize_categorized_pcl <- function(pcl_data) {
+#      
+#      # Aggregate a categorized pcl transect and calculate mean, sd, and count for each chunk of each segment
+#      aggregated_result <- aggregate(cbind(return_distance, intensity) ~ seg_num + chunk_num, data = pcl_data, FUN = function(x) c(mean = mean(x), sd = sd(x))) 
+#      aggregated_result[order(aggregated_result$seg_num), ]
+# }
+# 
+# 
+# # Do all the things
+# summarize_categorized_pcl(split_transects_from_pcl(read_and_check_pcl(data_dir, filename)))
+# 
+# 

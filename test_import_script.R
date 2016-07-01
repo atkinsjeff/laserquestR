@@ -28,3 +28,24 @@ test.data.binned <- split_transects_from_pcl(test.2)
 head(test.data.binned)
 summary(test.data.binned)
 
+make_matrix(test.data.binned)
+
+
+####rry, the output is here:
+####
+####stdStd     = 0.9514       <- Rugosity
+####height2    = 3.9023       <- 
+####mode2      = 3.6332       <-
+####meanHt     = 3.500        <- mean height of the canopy
+####meanStd    = 3.0526       <- 
+####meanLAI    = 0.5845       <- mean LAI, but how measured?
+####meanTopel  = 7.1905       <- mean top of the canopy, like surface
+# stdStd height2 mode2 modeEl meanHeight meanStd meanLAI meanTopel_CPAll
+# 
+# 
+# ans =
+#      
+#      0.9514    3.9023    3.6332    3.5000    3.0526    0.5845    1.9851    7.1905
+# the code prints it to the command line
+# i usually then pasted it into an excel sheet
+
