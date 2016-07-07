@@ -33,6 +33,15 @@ m1 <- make_matrix(test.data.binned)
 
 m.sky <- just_the_hits(test.data.binned)
 
+m1$vai <- bin_vai(m1)
+
+calc_rugosity(m1)
+### heat map
+library(akima)
+library(fields)
+m.m1 <- interp(m1$xbin, m1$ybin, m1$lidar_hits)
+
+image.plot(m.m1, zlim= c(0, 500), col = rev(tim.colors(64)))
 
 ####rry, the output is here:
 ####

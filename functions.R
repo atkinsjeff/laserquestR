@@ -166,13 +166,18 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
 
 
 make_matrix <- function(df) {
+     #ultimately this should actually make an empty data frame or something
+     #and it should go from x 1:40 and y to whatever so there are empty values in there
+     
      m <- aggregate(return_distance ~ xbin + ybin, data = df, FUN = length)
      m <- m[!m$ybin < 0, ]
      n <- aggregate(sky_hit ~ xbin, data = df, FUN = sum)
+     k <- aggregate(can_hit ~ xbin, data = df, FUN = sum)
      m <- merge(m, n, by = c("xbin"))
-     plyr::rename(m, c("xbin" = "xbin", "ybin" = "ybin", "return_distance" = "lidar_hits", "sky_hit" = "sky_hits") )
+     m <- merge(m, k, by = c("xbin"))
+     plyr::rename(m, c("xbin" = "xbin", "ybin" = "ybin", "return_distance" = "lidar_hits", "sky_hit" = "sky_hits", "can_hit" = "can_hits") )
 
-}
+} 
    
 make_sky <- function(df) {
      aggregate(sky_hit ~ xbin, data = df, FUN = sum)     
@@ -186,8 +191,22 @@ just_the_hits <- function(df) {
      p <- make_sky(df)
      q <- make_can(df)
      merge(p, q)
-     
 }
+
+calc_vai <- function(df) {
+     vai <- df$lidar_hits/(df$can_hits + df$sky_hits)
+}
+
+bin_vai <- function(df) {
+     df$vai <- calc_vai(df)
+}
+
+calc_rugosity <- function(df) {
+     p <- aggregate(vai ~ xbin, data = df, FUN = sd)
+     print(p)
+     sd(p$vai, na.rm = TRUE)
+}
+# 
 # 
 # 
 # summarize_categorized_pcl <- function(pcl_data) {
