@@ -5,6 +5,7 @@
 library(plyr)
 library(dplyr)
 library(magrittr)
+library(ggplot2)
 
 
 
@@ -195,6 +196,7 @@ just_the_hits <- function(df) {
 
 calc_vai <- function(df) {
      vai <- df$lidar_hits/(df$can_hits + df$sky_hits)
+     vai <- -log(1.0 - vai*0.9817)/0.5
 }
 
 bin_vai <- function(df) {

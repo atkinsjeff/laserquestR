@@ -1,6 +1,7 @@
 # Source functions
 source("functions.R")
 
+
 # Set parameters
 data_dir <- "./data/"
 filename <- "osbs_28_west.CSV"
@@ -60,4 +61,20 @@ image.plot(m.m1, zlim= c(0, 500), col = rev(tim.colors(64)))
 #      0.9514    3.9023    3.6332    3.5000    3.0526    0.5845    1.9851    7.1905
 # the code prints it to the command line
 # i usually then pasted it into an excel sheet
+# 
+
+ggplot(m1, aes(x = xbin, y = ybin))+ 
+     geom_tile(aes(fill = lidar_hits))+
+     # scale_y_continuous(breaks = seq(0, 20, 5))+
+     # scale_x_continuous(minor_breaks = seq(0, 40, 1))+
+     theme(panel.grid.major = element_blank(),
+           panel.grid.minor = element_blank(),
+           panel.background = element_blank())+
+     xlim(0,40)+
+     ylim(0,20)+
+     xlab("Distance along transect (m)")+
+     ylab("Height above ground (m)")
+
++
+     scale_fill_gradient(low = "white", high = "steelblue"))
 
