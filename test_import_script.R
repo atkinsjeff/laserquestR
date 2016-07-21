@@ -66,14 +66,15 @@ image.plot(m.m1, zlim= c(0, 500), col = rev(tim.colors(64)))
 ggplot(m1, aes(x = xbin, y = ybin))+ 
      geom_tile(aes(fill = lidar_hits))+
      scale_fill_gradient(low="light green", high="dark green", 
-                         name="LiDAR\nhit density")+
-     # scale_y_continuous(breaks = seq(0, 20, 5))+
+                         name="LiDAR\n hit density")+
+     #scale_y_continuous(breaks = seq(0, 20, 5))+
      # scale_x_continuous(minor_breaks = seq(0, 40, 1))+
-     theme(panel.grid.major = element_blank(),
+     theme(axis.line = element_line(colour = "black"),
+           panel.grid.major = element_blank(),
            panel.grid.minor = element_blank(),
            panel.background = element_blank())+
      xlim(0,40)+
-     ylim(0,10)+
+     ylim(0,20)+
      xlab("Distance along transect (m)")+
      ylab("Height above ground (m)")
 
