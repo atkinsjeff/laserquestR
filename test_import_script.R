@@ -12,10 +12,12 @@ write_out <- FALSE
 test.data <- read_and_check_pcl(data_dir, filename, DEBUG = TRUE)
 
 test.2 <- read.pcl("./data/osbs_28_west.CSV")
-test.2 <- add_sky_hits(test.2)
-test.2 <- add_can_hits(test.2)
-test.2 <- add_markers(test.2)
+test.2 <- code_hits(test.2)
+# test.2 <- add_sky_hits(test.2)
+# test.2 <- add_can_hits(test.2)
+# test.2 <- add_markers(test.2)
 head(test.2)
+
 pcl.diagnostic.plot(test.2, "OSBS", 15)
 # adding bins
 length(test.2[test.2$return_distance < -9999, 2])
@@ -30,13 +32,40 @@ test.data.binned <- split_transects_from_pcl(test.2)
 head(test.data.binned)
 summary(test.data.binned)
 
-m1 <- make_matrix(test.data.binned)
+# m1 <- make_matrix(test.data.binned)
+m.test <- make_matrix(test.data.binned)
+m1 <- m.test
 
-m.sky <- just_the_hits(test.data.binned)
+# I think we need to make the lidar returns = 0
+m1$lidar_returns[is.na(m1$lidar_returns)] <- 0
+m1$vai <- calc_vai(m1)
 
-m1$vai <- bin_vai(m1)
 
+############################################################333
+### playing around here
+
+
+p <- aggregate(vai ~ xbin, data = m1, FUN = sd, na.rm = FALSE)
+
+# new method
+z = test.data.binned
+newdata <- subset(mydata, age >= 20 | age < 10, 
+z <- subset(z, return_distance >= 0)
+summary(z)
+m.new <- aggregate(return_distance ~ xbin, data = z, FUN = sd) 
+
+sd(m.new$return_distance, na.rm=TRUE)
+
+
+
+
+
+m1$vai[!is.finite(m1$vai)] <- 0
+
+
+a[!is.finite(a)] <- 0
 calc_rugosity(m1)
+sd(m1$vai)
 ### heat map
 library(akima)
 library(fields)
@@ -63,6 +92,10 @@ image.plot(m.m1, zlim= c(0, 500), col = rev(tim.colors(64)))
 # i usually then pasted it into an excel sheet
 # 
 
+
+
+
+#### this makes a hit grid. keep it.
 ggplot(m1, aes(x = xbin, y = ybin))+ 
      geom_tile(aes(fill = lidar_hits))+
      scale_fill_gradient(low="light green", high="dark green", 

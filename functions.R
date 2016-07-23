@@ -19,37 +19,64 @@ read.pcl <- function(f) {
 }
 
 # this function accounts for the NAs that are in return distance which are actually the sky hits (i.e. when the lidar does not record a canopy hit)
-add_sky_hits <- function(df) {
-     for(i  in 1:nrow(df)){
-     if (is.na(df$return_distance[i]) == TRUE) {
-          df$sky_hit[i] = TRUE
-     }else{
-          df$sky_hit[i] = FALSE
-     }
-     }
-     df
-}
-
-add_can_hits <- function(df) {
-     for(i  in 1:nrow(df)){
+# 
+code_hits <- function(df) {
+     for(i in 1:nrow(df)){
           if (is.na(df$return_distance[i]) == TRUE) {
+               df$sky_hit[i] = TRUE
                df$can_hit[i] = FALSE
+               df$marker[i] = FALSE
           }else{
+          if (df$return_distance[i] > 0){
+               df$sky_hit[i] = FALSE
                df$can_hit[i] = TRUE
+               df$marker[i] = FALSE
+          }else{
+               df$sky_hit[i] = FALSE
+               df$can_hit[i] = FALSE
+               df$marker[i] = TRUE
+               print(df)
           }
+     }
      }
      df
 }
 
-add_markers <- function(df) {
-     for (i in 1:nrow(df)){
-          if (df$return_distance[i] == -99999999) {
-               df$marker[i] = TRUE
-          }else{
-               df$marker[i] = FALSE
-          }
-     }
-}
+# add_sky_hits <- function(df) {
+#      for(i  in 1:nrow(df)){
+#      if (is.na(df$return_distance[i]) == TRUE) {
+#           df$sky_hit[i] = TRUE
+#      }else{
+#           df$sky_hit[i] = FALSE
+#      }
+#      }
+#      df
+# }
+# 
+# add_markers <- function(df) {
+#      for(i  in 1:nrow(df)){
+#           if (is.na(df$return_distance[i]) == TRUE & df$return_distance[i] < 0) {
+#                df$marker[i] = TRUE
+#           }else{
+#                df$marker[i] = FALSE
+#           }
+#      }
+#      df
+# }
+# 
+# # this function as a logical true or false based on if there is a canopy hit
+# add_can_hits <- function(df){
+#      for(i  in 1:nrow(df)){
+#           if (is.na(df$return_distance[i]) == TRUE)) {
+#                df$can_hit[i] = FALSE
+#           }else{
+#                df$can_hit[i] = TRUE
+#           }
+#      }
+#      df
+# }
+# 
+
 
 # this function mirrors the read.table, read.csv function, but is written for pcl data
 
@@ -169,16 +196,26 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
 make_matrix <- function(df) {
      #ultimately this should actually make an empty data frame or something
      #and it should go from x 1:40 and y to whatever so there are empty values in there
-     
-     m <- aggregate(return_distance ~ xbin + ybin, data = df, FUN = length)
+     z = df
+     z <- subset(z, return_distance >= 0)
+     zz <- aggregate(return_distance ~ xbin, data = z, FUN = mean) 
+     zzz <- aggregate(return_distance ~ xbin, data = z, FUN = sd)             
+     l <- aggregate(index ~ xbin, data = df, FUN = length)
+     m <- aggregate(return_distance ~ xbin + ybin, data = df, FUN = length) 
      m <- m[!m$ybin < 0, ]
      n <- aggregate(sky_hit ~ xbin, data = df, FUN = sum)
      k <- aggregate(can_hit ~ xbin, data = df, FUN = sum)
-     m <- merge(m, n, by = c("xbin"))
-     m <- merge(m, k, by = c("xbin"))
-     plyr::rename(m, c("xbin" = "xbin", "ybin" = "ybin", "return_distance" = "lidar_hits", "sky_hit" = "sky_hits", "can_hit" = "can_hits") )
-
+     p <- merge(l, m, by = c("xbin"), all = TRUE)
+     p <- merge(p, n, by = c("xbin"), all = TRUE)
+     p <- merge(p, k, by = c("xbin"), all = TRUE)
+     p <- merge(p, zz, by = c("xbin"), all = TRUE)
+     p <- merge(p, zzz, by = c("xbin"), all = TRUE)
+     
+     plyr::rename(p, c("xbin" = "xbin", "ybin" = "ybin", "index" = "lidar_pulses", "return_distance" = "bin_height_sd","return_distance.y" = "bin_height_mean","return_distance.x" = "lidar_returns" , "sky_hit" = "sky_hits", "can_hit" = "can_hits") )
+      
 } 
+
+
    
 make_sky <- function(df) {
      aggregate(sky_hit ~ xbin, data = df, FUN = sum)     
@@ -194,9 +231,17 @@ just_the_hits <- function(df) {
      merge(p, q)
 }
 
+# this, if applied to the whole column would be cover fraction
 calc_vai <- function(df) {
-     vai <- df$lidar_hits/(df$can_hits + df$sky_hits)
-     vai <- -log(1.0 - vai*0.9817)/0.5
+     bin_cover_fraction <- df$lidar_returns/(df$can_hits + df$sky_hits)/df$lidar_returns
+     
+     
+     # for(i in 1:nrow(df)){
+     #      if (is.na(df$vai[i]) == TRUE) {
+     #           df$vai[i] = 0
+     #      }
+     # }
+     # vai <- -log(1.0 - vai*0.9817)/0.5
 }
 
 bin_vai <- function(df) {
@@ -205,8 +250,10 @@ bin_vai <- function(df) {
 
 calc_rugosity <- function(df) {
      p <- aggregate(vai ~ xbin, data = df, FUN = sd)
+     p$vai[is.na(p$vai)] <- 0
+     p$vai[!is.finite(p$vai)] <- 0
      print(p)
-     sd(p$vai, na.rm = TRUE)
+     sd(df$vai)
 }
 # 
 # 
