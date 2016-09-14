@@ -78,12 +78,12 @@ m1$vai[!is.finite(m1$vai)] <- 0
 a[!is.finite(a)] <- 0
 calc_rugosity(m1)
 sd(m1$vai)
-### heat map
-library(akima)
-library(fields)
-m.m1 <- interp(m1$xbin, m1$ybin, m1$lidar_hits)
-
-image.plot(m.m1, zlim= c(0, 500), col = rev(tim.colors(64)))
+# ### heat map
+# library(akima)
+# library(fields)
+# m.m1 <- interp(m1$xbin, m1$ybin, m1$lidar_hits)
+# 
+# image.plot(m.m1, zlim= c(0, 500), col = rev(tim.colors(64)))
 
 ####rry, the output is here:
 ####
@@ -110,9 +110,9 @@ image.plot(m.m1, zlim= c(0, 500), col = rev(tim.colors(64)))
 #### this makes a hit grid. keep it.
 x11()
 ggplot(m1, aes(x = xbin, y = ybin))+ 
-     geom_tile(aes(fill = lidar_returns))+
+     geom_tile(aes(fill = vai))+
      scale_fill_gradient(low="palegreen1", high="dark green", 
-                         name="LiDAR\n hit density")+
+                         name="LiDAR\n Method One")+
      #scale_y_continuous(breaks = seq(0, 20, 5))+
      # scale_x_continuous(minor_breaks = seq(0, 40, 1))+
      theme(axis.line = element_line(colour = "black"),
@@ -124,5 +124,31 @@ ggplot(m1, aes(x = xbin, y = ybin))+
      xlab("Distance along transect (m)")+
      ylab("Height above ground (m)")
 
+calc_rugosity_jess(m1)
+
+m1$adj.vai <- vai_adjust_lai_max(m1)
+
+x11()
+ggplot(m1, aes(x = xbin, y = ybin))+ 
+     geom_tile(aes(fill = adj.vai))+
+     scale_fill_gradient(low="palegreen1", high="dark green", 
+                         name="LiDAR\n Method Two")+
+     #scale_y_continuous(breaks = seq(0, 20, 5))+
+     # scale_x_continuous(minor_breaks = seq(0, 40, 1))+
+     theme(axis.line = element_line(colour = "black"),
+           panel.grid.major = element_blank(),
+           panel.grid.minor = element_blank(),
+           panel.background = element_blank())+
+     xlim(0,40)+
+     ylim(0,20)+
+     xlab("Distance along transect (m)")+
+     ylab("Height above ground (m)")
+
+calc_rugosity(m1)
+calc_rugosity_adj(m1)
 
 
+
+
+p <- aggregate(vai ~ xbin, data = m1, FUN = sd)
+sd(p$vai)

@@ -243,13 +243,13 @@ calc_vai <- function(df) {
      #       df$vai[i] = 0
      #  }
      # }
-     vai = (df$bin.hits / df$lidar.pulses) * df$max.ht
+     vai = (df$bin.hits / df$lidar.pulses) 
      vai = vai * -1
      vai <- log(1.0 - vai*0.9817)/0.5
 }
 
 vai_adjust_lai_max <- function(df) {
-     vai.adj = df$vai * 8
+     vai.adj = df$vai * 8 * ybin
 }
 
 vai_extinct <- function(df) {
@@ -265,12 +265,28 @@ bin_vai <- function(df) {
 }
 
 calc_rugosity <- function(df) {
+     df$vai = df$vai * df$max.ht
      p <- aggregate(vai ~ xbin, data = df, FUN = sd)
      p$vai[is.na(p$vai)] <- 0
      p$vai[!is.finite(p$vai)] <- 0
      print(p)
      sd(p$vai)
-     print()
+     
+}
+
+calc_rugosity_adj <- function(df) {
+     p <- aggregate(adj.vai ~ xbin, data = df, FUN = sd)
+     p$adj.vai[is.na(p$adj.vai)] <- 0
+     p$adj.vai[!is.finite(p$adj.vai)] <- 0
+     print(p)
+     sd(p$adj.vai)
+     
+}
+
+calc_rugosity_jess <- function(df) {
+     p <- aggregate(max.ht ~ xbin, data = df, FUN = sd)
+     p
+     
 }
 # 
 # 
