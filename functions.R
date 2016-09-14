@@ -80,11 +80,11 @@ code_hits <- function(df) {
 
 # this function mirrors the read.table, read.csv function, but is written for pcl data
 
-pcl.diagnostic.plot <- function(df, site, max.height) {
+pcl.diagnostic.plot <- function(df, site, min.height) {
      plot(df$index,
           df$return_distance,
           title = site,
-          ylim = c(0, max.height),
+          ylim = c(min.height, 40),
           ylab = "Canopy Height (m)",
           xlab = "Index Value")
      
@@ -136,7 +136,7 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
      
      # Check for how many segment boundaries we have (should be 5)
      #stopifnot(length(pcl_data[pcl_data$return_distance == -99999999, 2]) = 5)
-     stopifnot(length(which(pcl_data$return_distance < -9999)) == 5)
+     stopifnot(length(which(pcl_data$return_distance < -9999)) == 4)
      
      
      # Walk through rows and add the segment number in a new column
@@ -198,20 +198,22 @@ make_matrix <- function(df) {
      #and it should go from x 1:40 and y to whatever so there are empty values in there
      z = df
      z <- subset(z, return_distance >= 0)
-     zz <- aggregate(return_distance ~ xbin, data = z, FUN = mean) 
-     zzz <- aggregate(return_distance ~ xbin, data = z, FUN = sd)             
-     l <- aggregate(index ~ xbin, data = df, FUN = length)
-     m <- aggregate(return_distance ~ xbin + ybin, data = df, FUN = length) 
+     zz <- setNames(aggregate(return_distance ~ xbin, data = z, FUN = mean), c("xbin", "mean.ht"))
+     zzz <-setNames(aggregate(return_distance ~ xbin, data = z, FUN = sd), c("xbin", "sd.ht"))
+     zzzz <- setNames(aggregate(return_distance ~ xbin, data = z, FUN = max), c("xbin", "max.ht"))
+     l <- setNames(aggregate(index ~ xbin, data = df, FUN = length), c("xbin", "lidar.pulses"))
+     m <- setNames(aggregate(return_distance ~ xbin + ybin, data = df, FUN = length), c("xbin", "ybin","bin.hits")) 
      m <- m[!m$ybin < 0, ]
-     n <- aggregate(sky_hit ~ xbin, data = df, FUN = sum)
-     k <- aggregate(can_hit ~ xbin, data = df, FUN = sum)
+     n <- setNames(aggregate(sky_hit ~ xbin, data = df, FUN = sum), c("xbin", "sky.hits"))
+     k <- setNames(aggregate(can_hit ~ xbin, data = df, FUN = sum), c("xbin", "can.hits"))
      p <- merge(l, m, by = c("xbin"), all = TRUE)
      p <- merge(p, n, by = c("xbin"), all = TRUE)
      p <- merge(p, k, by = c("xbin"), all = TRUE)
      p <- merge(p, zz, by = c("xbin"), all = TRUE)
      p <- merge(p, zzz, by = c("xbin"), all = TRUE)
-     
-     plyr::rename(p, c("xbin" = "xbin", "ybin" = "ybin", "index" = "lidar_pulses", "return_distance" = "bin_height_sd","return_distance.y" = "bin_height_mean","return_distance.x" = "lidar_returns" , "sky_hit" = "sky_hits", "can_hit" = "can_hits") )
+     p <- merge(p, zzzz, by = c("xbin"), all = TRUE)
+     # 
+     # plyr::rename(p, c("xbin" = "xbin", "ybin" = "ybin", "index" = "lidar_pulses", "return_distance" = "bin_height_sd","return_distance.y" = "bin_height_mean","return_distance.x" = "lidar_returns" , "sky_hit" = "sky_hits", "can_hit" = "can_hits") )
       
 } 
 
@@ -233,16 +235,30 @@ just_the_hits <- function(df) {
 
 # this, if applied to the whole column would be cover fraction
 calc_vai <- function(df) {
-     bin_cover_fraction <- df$lidar_returns/(df$can_hits + df$sky_hits)/df$lidar_returns
+     # bin_cover_fraction <- df$lidar.pulses/(df$can_hits + df$sky_hits)/df$lidar_returns
      
-     
+
      # for(i in 1:nrow(df)){
-     #      if (is.na(df$vai[i]) == TRUE) {
-     #           df$vai[i] = 0
-     #      }
+     #  if (is.na(df$vai[i]) == TRUE) {
+     #       df$vai[i] = 0
+     #  }
      # }
-     # vai <- -log(1.0 - vai*0.9817)/0.5
+     vai = (df$bin.hits / df$lidar.pulses) * df$max.ht
+     vai = vai * -1
+     vai <- log(1.0 - vai*0.9817)/0.5
 }
+
+vai_adjust_lai_max <- function(df) {
+     vai.adj = df$vai * 8
+}
+
+vai_extinct <- function(df) {
+     vai = log(1.0 - df$vai*0.9817) / 0.5
+     vai = df$vai * -1
+     }
+
+
+
 
 bin_vai <- function(df) {
      df$vai <- calc_vai(df)
@@ -253,7 +269,8 @@ calc_rugosity <- function(df) {
      p$vai[is.na(p$vai)] <- 0
      p$vai[!is.finite(p$vai)] <- 0
      print(p)
-     sd(df$vai)
+     sd(p$vai)
+     print()
 }
 # 
 # 

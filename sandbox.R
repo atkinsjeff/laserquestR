@@ -1,5 +1,15 @@
 # Sandbox
 
+
+vai_x = 0.9
+
+vai_x = vai_x * -1
+vai_x <- log(1.0 - vai_x*0.9817)/0.5
+vai_x
+
+
+
+
 # Source functions
 source("functions.R")
 
@@ -10,7 +20,8 @@ DEBUG <- FALSE
 write_out <- FALSE
 
 
-
+zz <- setNames(aggregate(return_distance ~ xbin, data = z, FUN = mean), c("mean.ht")
+               
 
 
 require(graphics); require(grDevices)

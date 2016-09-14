@@ -4,21 +4,23 @@ source("functions.R")
 
 # Set parameters
 data_dir <- "./data/"
-filename <- "osbs_28_west.CSV"
+#filename <- "osbs_28_west.csv"
+#filename <- "VDGIF-C5-06072016.csv"
+filename <- "GRSM-64-C.CSV"
 DEBUG <- FALSE
 write_out <- FALSE
 
 # Looking at test.data from Sweet Briar College
-test.data <- read_and_check_pcl(data_dir, filename, DEBUG = TRUE)
+test.data <- read.pcl(data_dir, filename, DEBUG = FALSE)
 
-test.2 <- read.pcl("./data/osbs_28_west.CSV")
-test.2 <- code_hits(test.2)
+# test.2 <- read.pcl("./data/GRSM-64-C.CSV")
+test.2 <- code_hits(test.data)
 # test.2 <- add_sky_hits(test.2)
 # test.2 <- add_can_hits(test.2)
 # test.2 <- add_markers(test.2)
 head(test.2)
 
-pcl.diagnostic.plot(test.2, "OSBS", 15)
+pcl.diagnostic.plot(test.2, "", -1e+09)
 # adding bins
 length(test.2[test.2$return_distance < -9999, 2])
 length(which(test.2$return_distance < -9999))
@@ -32,13 +34,24 @@ test.data.binned <- split_transects_from_pcl(test.2)
 head(test.data.binned)
 summary(test.data.binned)
 
+
+###########33
+###########
+###########
 # m1 <- make_matrix(test.data.binned)
 m.test <- make_matrix(test.data.binned)
 m1 <- m.test
 
 # I think we need to make the lidar returns = 0
-m1$lidar_returns[is.na(m1$lidar_returns)] <- 0
+# m1$lidar_returns[is.na(m1$lidar_returns)] <- 0
 m1$vai <- calc_vai(m1)
+
+
+m1$vai <- calc_vai(m1)
+rugosity <- calc_rugosity(m1)
+m2 <- m1
+m2$vai <- vai_adjust_lai_max(m2)
+rugosity2 <- calc_rugosity(m2)
 
 
 ############################################################333
@@ -49,14 +62,13 @@ p <- aggregate(vai ~ xbin, data = m1, FUN = sd, na.rm = FALSE)
 
 # new method
 z = test.data.binned
-newdata <- subset(mydata, age >= 20 | age < 10, 
 z <- subset(z, return_distance >= 0)
 summary(z)
 m.new <- aggregate(return_distance ~ xbin, data = z, FUN = sd) 
 
 sd(m.new$return_distance, na.rm=TRUE)
 
-
+m.vai <- bin_vai(m1)
 
 
 
@@ -96,9 +108,10 @@ image.plot(m.m1, zlim= c(0, 500), col = rev(tim.colors(64)))
 
 
 #### this makes a hit grid. keep it.
+x11()
 ggplot(m1, aes(x = xbin, y = ybin))+ 
-     geom_tile(aes(fill = lidar_hits))+
-     scale_fill_gradient(low="light green", high="dark green", 
+     geom_tile(aes(fill = lidar_returns))+
+     scale_fill_gradient(low="palegreen1", high="dark green", 
                          name="LiDAR\n hit density")+
      #scale_y_continuous(breaks = seq(0, 20, 5))+
      # scale_x_continuous(minor_breaks = seq(0, 40, 1))+

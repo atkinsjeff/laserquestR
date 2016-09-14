@@ -1,0 +1,17 @@
+RICE / VDGIF notes
+
+Parallel transects 5m to the east and west of center transects already run. 
+
+30m transects running SW -> NE; points every 5m
+
+Ceptometer exists for some plots as well 6/27
+
+
+
+C2W- last point is extra/accidental, should be removed.
+
+C2E- missing a 5m marker point ~17000
+
+
+
+laser connection occassionally stops briefly, then continues. poor serial connection??
