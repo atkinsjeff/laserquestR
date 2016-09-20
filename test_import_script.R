@@ -4,14 +4,15 @@ source("functions.R")
 
 # Set parameters
 data_dir <- "./data/"
-#filename <- "osbs_28_west.csv"
+filename <- "osbs_28_west.csv"
 #filename <- "VDGIF-C5-06072016.csv"
-filename <- "GRSM-64-C.CSV"
-DEBUG <- FALSE
+#filename <- "GRSM-64-C.CSV"
+# DEBUG <- FALSE
 write_out <- FALSE
 
+
 # Looking at test.data from Sweet Briar College
-test.data <- read.pcl(data_dir, filename, DEBUG = FALSE)
+test.data <- read.pcl(data_dir, filename)
 
 # test.2 <- read.pcl("./data/GRSM-64-C.CSV")
 test.2 <- code_hits(test.data)
@@ -47,7 +48,7 @@ m1 <- m.test
 m1$vai <- calc_vai(m1)
 
 
-m1$vai <- calc_vai(m1)
+
 rugosity <- calc_rugosity(m1)
 m2 <- m1
 m2$vai <- vai_adjust_lai_max(m2)
@@ -152,3 +153,23 @@ calc_rugosity_adj(m1)
 
 p <- aggregate(vai ~ xbin, data = m1, FUN = sd)
 sd(p$vai)
+
+
+
+
+#####
+#####
+#####
+#####
+# looking at VAI stuff
+vai.seq <- seq(0.1, 8, by =0.01)
+
+test.vai <- data.frame(vai.seq)
+plot(test.vai$vai.seq)
+test.vai$vai.seq <- vai.seq * -1
+
+
+test.vai$vai.seq <- log(1.0 - test.vai$vai.seq*0.9817)/0.5
+plot(test.vai$vai.seq)
+
+

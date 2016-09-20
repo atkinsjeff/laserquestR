@@ -11,7 +11,8 @@ library(ggplot2)
 
 ######################3
 # Import PCL data function
-read.pcl <- function(f) {
+read.pcl <- function(data_dir, filename) {
+     f <- file.path(data_dir, filename)
      df <- read.csv(f, header=FALSE, col.names = c("return_distance", "intensity"))
      df$index <- as.numeric(rownames(df))
      df = df[,c(3, 1, 2)]
@@ -136,7 +137,7 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
      
      # Check for how many segment boundaries we have (should be 5)
      #stopifnot(length(pcl_data[pcl_data$return_distance == -99999999, 2]) = 5)
-     stopifnot(length(which(pcl_data$return_distance < -9999)) == 4)
+    # stopifnot(length(which(pcl_data$return_distance < -9999)) == 4)
      
      
      # Walk through rows and add the segment number in a new column
