@@ -169,9 +169,9 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
      # Make sure we didn't make too many chunks in any segment
      stopifnot(max(results$chunk_num) < 11)
      
-     # Code segment to create ybin and xbin
+     # Code segment to create zbin and xbin
      results$xbin <- ((results$seg_num * 10) - 10)  +results$chunk_num
-     results$ybin <- floor(results$return_distance)
+     results$zbin <- floor(results$return_distance)
      # Check final output
      if (DEBUG) head(results)
      if (DEBUG) tail(results)
@@ -196,15 +196,15 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
 
 make_matrix <- function(df) {
      #ultimately this should actually make an empty data frame or something
-     #and it should go from x 1:40 and y to whatever so there are empty values in there
+     #and it should go from x 1:40 and z to whatever so there are empty values in there
      z = df
      z <- subset(z, return_distance >= 0)
      zz <- setNames(aggregate(return_distance ~ xbin, data = z, FUN = mean), c("xbin", "mean.ht"))
      zzz <-setNames(aggregate(return_distance ~ xbin, data = z, FUN = sd), c("xbin", "sd.ht"))
      zzzz <- setNames(aggregate(return_distance ~ xbin, data = z, FUN = max), c("xbin", "max.ht"))
      l <- setNames(aggregate(index ~ xbin, data = df, FUN = length), c("xbin", "lidar.pulses"))
-     m <- setNames(aggregate(return_distance ~ xbin + ybin, data = df, FUN = length), c("xbin", "ybin","bin.hits")) 
-     m <- m[!m$ybin < 0, ]
+     m <- setNames(aggregate(return_distance ~ xbin + zbin, data = df, FUN = length), c("xbin", "zbin","bin.hits")) 
+     m <- m[!m$zbin < 0, ]
      n <- setNames(aggregate(sky_hit ~ xbin, data = df, FUN = sum), c("xbin", "sky.hits"))
      k <- setNames(aggregate(can_hit ~ xbin, data = df, FUN = sum), c("xbin", "can.hits"))
      p <- merge(l, m, by = c("xbin"), all = TRUE)
@@ -214,7 +214,7 @@ make_matrix <- function(df) {
      p <- merge(p, zzz, by = c("xbin"), all = TRUE)
      p <- merge(p, zzzz, by = c("xbin"), all = TRUE)
      # 
-     # plyr::rename(p, c("xbin" = "xbin", "ybin" = "ybin", "index" = "lidar_pulses", "return_distance" = "bin_height_sd","return_distance.y" = "bin_height_mean","return_distance.x" = "lidar_returns" , "sky_hit" = "sky_hits", "can_hit" = "can_hits") )
+     # plyr::rename(p, c("xbin" = "xbin", "zbin" = "zbin", "index" = "lidar_pulses", "return_distance" = "bin_height_sd","return_distance.y" = "bin_height_mean","return_distance.x" = "lidar_returns" , "sky_hit" = "sky_hits", "can_hit" = "can_hits") )
       
 } 
 
@@ -245,12 +245,18 @@ calc_vai <- function(df) {
      #  }
      # }
      vai = (df$bin.hits / df$lidar.pulses) 
+     vai = vai * 8 #adjust for max lai?
      vai = vai * -1
      vai <- log(1.0 - vai*0.9817)/0.5
+     
+     #subfunction to create max.vai for each column
+     z = df
+     max.vai <- aggregate(vai ~ xbin, data = z, FUN = max)
+     p <- merge(df, z, by = c("xbin"), all = TRUE)
 }
 
 vai_adjust_lai_max <- function(df) {
-     vai.adj = df$vai * 8 * ybin
+     vai.adj = df$vai * 8 * df$zbin
 }
 
 vai_extinct <- function(df) {
@@ -266,7 +272,7 @@ bin_vai <- function(df) {
 }
 
 calc_rugosity <- function(df) {
-     df$vai = df$vai * df$max.ht
+     df$vai = df$vai * df$zbin
      p <- aggregate(vai ~ xbin, data = df, FUN = sd)
      p$vai[is.na(p$vai)] <- 0
      p$vai[!is.finite(p$vai)] <- 0

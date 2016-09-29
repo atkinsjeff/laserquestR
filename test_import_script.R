@@ -3,10 +3,27 @@ source("functions.R")
 
 
 # Set parameters
-data_dir <- "./data/"
-filename <- "osbs_28_west.csv"
+# data_dir <- "./data/"
+# #filename <- "osbs_28_west.csv"
+# #filename <- "VDGIF-C5-06072016.csv"
+# filename <- "GRSM-64-C.CSV"
+# # DEBUG <- FALSE
+# write_out <- FALSE
+# 
+# 
+# # Looking at test.data from Sweet Briar College
+# test.data <- read.pcl(data_dir, filename)
+# 
+# # test.2 <- read.pcl("./data/GRSM-64-C.CSV")
+# test.2 <- code_hits(test.data)
+# # test.2 <- add_sky_hits(test.2)
+# # test.2 <- add_can_hits(test.2)
+# # test.2 <- add_mar
+# 
+# data_dir <- "./data/rice/"
+#filename <- "osbs_28_west.csv"
 #filename <- "VDGIF-C5-06072016.csv"
-#filename <- "GRSM-64-C.CSV"
+filename <- "rice_control_one.CSV"
 # DEBUG <- FALSE
 write_out <- FALSE
 
@@ -14,12 +31,12 @@ write_out <- FALSE
 # Looking at test.data from Sweet Briar College
 test.data <- read.pcl(data_dir, filename)
 
-# test.2 <- read.pcl("./data/GRSM-64-C.CSV")
 test.2 <- code_hits(test.data)
 # test.2 <- add_sky_hits(test.2)
 # test.2 <- add_can_hits(test.2)
 # test.2 <- add_markers(test.2)
-head(test.2)
+head(test.2)kers(test.2)
+# head(test.2)
 
 pcl.diagnostic.plot(test.2, "", -1e+09)
 # adding bins
@@ -110,7 +127,7 @@ sd(m1$vai)
 
 #### this makes a hit grid. keep it.
 x11()
-ggplot(m1, aes(x = xbin, y = ybin))+ 
+ggplot(m1, aes(x = xbin, y = zbin))+ 
      geom_tile(aes(fill = vai))+
      scale_fill_gradient(low="palegreen1", high="dark green", 
                          name="LiDAR\n Method One")+
@@ -121,7 +138,7 @@ ggplot(m1, aes(x = xbin, y = ybin))+
            panel.grid.minor = element_blank(),
            panel.background = element_blank())+
      xlim(0,40)+
-     ylim(0,20)+
+     ylim(0,40)+
      xlab("Distance along transect (m)")+
      ylab("Height above ground (m)")
 
@@ -130,7 +147,7 @@ calc_rugosity_jess(m1)
 m1$adj.vai <- vai_adjust_lai_max(m1)
 
 x11()
-ggplot(m1, aes(x = xbin, y = ybin))+ 
+ggplot(m1, aes(x = xbin, y = zbin))+ 
      geom_tile(aes(fill = adj.vai))+
      scale_fill_gradient(low="palegreen1", high="dark green", 
                          name="LiDAR\n Method Two")+

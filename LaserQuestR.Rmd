@@ -1,0 +1,61 @@
+---
+title: "LaserquestR"
+author: "Jeff Atkins"
+date: "September 14, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Source functions
+source("functions.R")
+
+# Set parameters
+data_dir <- "./data/rice/"
+#filename <- "osbs_28_west.csv"
+#filename <- "VDGIF-C5-06072016.csv"
+filename <- "rice_control_one.CSV"
+# DEBUG <- FALSE
+write_out <- FALSE
+
+
+# Looking at test.data from Sweet Briar College
+test.data <- read.pcl(data_dir, filename)
+
+test.2 <- code_hits(test.data)
+# test.2 <- add_sky_hits(test.2)
+# test.2 <- add_can_hits(test.2)
+# test.2 <- add_markers(test.2)
+head(test.2)
+```
+
+## Looking at VAI
+
+I wanted to look at the VAI calculations and walk-through what they are doing to make sure I understand them.
+
+I am going to do this with some ordered sequences--assuming that max LAI is 8. Graphing this distribution of points along the index they occur gives us a straight line.
+
+```{r vai.lonely}
+vai.seq <- seq(0.1, 8, by =0.01)
+
+test.vai <- data.frame(vai.seq)
+plot(test.vai$vai.seq, xlab = "Index", ylab = "VAI")
+```
+
+
+
+## Now to apply the extinction equation
+
+This produces a curve if we just adjust with only the negative log function.
+
+```{r vai.extinct}
+test.vai$vai.seq <- vai.seq * -1
+
+
+test.vai$vai.seq <- log(1.0 - test.vai$vai.seq*0.9817)/0.5
+plot(test.vai$vai.seq, xlab = "Index", ylab = "VAI")
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

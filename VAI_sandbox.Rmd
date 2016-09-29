@@ -1,40 +1,14 @@
----
-title: "VAI"
-author: "Jeff Atkins"
-date: "September 14, 2016"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-## Looking at VAI
-
-I wanted to look at the VAI calculations and walk-through what they are doing to make sure I understand them.
-
-I am going to do this with some ordered sequences--assuming that max LAI is 8. Graphing this distribution of points along the index they occur gives us a straight line.
-
-```{r vai.lonely}
-vai.seq <- seq(0.1, 8, by =0.01)
-
-test.vai <- data.frame(vai.seq)
-plot(test.vai$vai.seq, xlab = "Index", ylab = "VAI")
-```
+x <- c(1,1,1,1,1,2,2,3,3,4,4,4)
+z <- c(1,4,5,6,7,1,4,2,8,1,2,5)
+value <-c(9,9,9,9,9,9,9,9,9,9,9,9)
 
 
+df <- data.frame(x, z, value)
+mat <- matrix(0, 4, 8)
 
-## Now to apply the extinction equation
+data.frame(x,z, value)
 
-This produces a curve if we just adjust with only the negative log function.
+mat[cbind(df$x, df$z)] <- df$value
 
-```{r vai.extinct}
-test.vai$vai.seq <- vai.seq * -1
-
-
-test.vai$vai.seq <- log(1.0 - test.vai$vai.seq*0.9817)/0.5
-plot(test.vai$vai.seq, xlab = "Index", ylab = "VAI")
-
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+df1 <- data.frame(mat)
+df <- setNames(data.frame(matrix(ncol = 5, nrow = 0)),paste0("hello", c(1:5)))
