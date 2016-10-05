@@ -27,25 +27,24 @@ filename <- "rice_control_two.CSV"
 # DEBUG <- FALSE
 write_out <- FALSE
 
-comp.test.data <- read.csv("./data/rice/rice_control_one.CSV", header = FALSE)
-# Looking at test.data from Sweet Briar College
 test.data <- read.pcl(data_dir, filename)
 
 test.2 <- code_hits(test.data)
+test.2 <- adjust_by_user(df, 1.2)
 # test.2 <- add_sky_hits(test.2)
 # test.2 <- add_can_hits(test.2)
 # test.2 <- add_markers(test.2)
 head(test.2)
 # head(test.2)
 
-pcl.diagnostic.plot(test.2, "", -1e+09)
-# adding bins
-length(test.2[test.2$return_distance < -9999, 2])
-length(which(test.2$return_distance < -9999))
-
-
-which((test.2$return_distance <= -9999))
-test.2[test.2$return_distance <= -9999 & !is.na(test.2$return_distance), ] 
+pcl.diagnostic.plot(test.2, "RICE Control 2", -1e+08)
+# # # adding bins
+# length(test.2[test.2$return_distance < -9999, 2])
+# g<- length(which(test.2$return_distance < -9999))
+# 
+# 
+# which((test.2$return_distance <= -9999))
+# test.2[test.2$return_distance <= -9999 & !is.na(test.2$return_distance), ]
 
 test.data.binned <- split_transects_from_pcl(test.2, 30, 10)
 
@@ -56,13 +55,7 @@ summary(test.data.binned)
 ###########33
 ###########
 ###########
-m.test <- make_matrix(test.data.binned)
-p <- test.data.binned
-
-
-m1 <- m.test
-
-
+m1 <- make_matrix(test.data.binned)
 
 
 #now VAI
@@ -71,10 +64,10 @@ m1 <- calc_vai(m1)
 
 #######new test
 m1 <- calc_mean_leaf_ht(m1)
-m3 <- calc_std_bin(m1)
+m1 <- calc_std_bin(m1)
 
-calc_rugosity(m3)
-jj$h== <- ( (m3$vai * m3*zbin) / m3$sum.vai.by.xbin)
+calc_rugosity(m1)
+
 
 
 # m1$mean.leaf.ht.by.xbin <- m1$x / m1$sum.vai.by.xbin

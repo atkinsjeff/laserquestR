@@ -1,0 +1,112 @@
+---
+title: "R test run of rugosity code"
+author: "Jeff Atkins"
+date: "October 5, 2016"
+output: pdf_document
+---
+```{r setup1, echo = FALSE }
+require(ggplot2)
+
+```
+## OVERVIEW
+
+This document runs through the testing of a draft module of an R package to be used to calculate canopy structural metrics from portable canopy LiDAR (PCL) data. This code is meant to reproduce methods as outlined in Hardiman et al. 2011 etc.
+
+The code now pulls from an functions.R script that includes the sub-functions that parse and process the PCL data files. 
+
+
+```{r setup, echo = TRUE }
+# Source functions
+source("functions.R")
+
+```
+
+## WORKFLOW
+
+The draft of the script runs a single-transect at a time and requires the entry of a data directory (noted as: `data_dir`) and the name of the file to be imported (noted as: `filename`). The script then uses the function `read.pcl` that uses a custom `read.csv` format to import and structure PCL data. A diagnostic plot of the data can also be produced with the function `pcl.diagnostic.plot`.
+
+```{r import.files, echo = TRUE}
+data_dir <- "./data/rice/"
+filename <- "rice_control_two.CSV"
+
+#function to import data
+test.data <- read.pcl(data_dir, filename)
+
+# let's take a quick look at the data
+head(test.data)
+
+pcl.diagnostic.plot(test.data, "RICE Control 2", -1e+08)
+
+```
+
+The next step includes adjusting by user height with the function `adjust_by_user` that takes the data frame name and the "Brady Height" value (the distance of the PCL from the ground in meters). LiDAR "hits" are then coded using `code_hits`--a function that allows for processing the data through vectorization. The data are then binned to x and z bins using the function `split_transects_from_pcl`.
+
+
+```{r making.bins, echo = TRUE}
+test.data <- adjust_by_user(test.data, 1.2)
+
+test.data <- code_hits(test.data)
+
+#the bread and butter of this code
+test.data.binned <- split_transects_from_pcl(test.data, 30, 10)
+
+#let's look at the data again
+head(test.data.binned)
+summary(test.data.binned)
+```
+
+Next comes the formulation of the matrix for the basis of further calculations. The matrix results from condensing data into a matrix with dimensions of length of transect X maximum measured canopy height. For example, a 40 m transect with max canopy height of 29.3 m would results in a matrix with dimensions of 40 x 29. The function `make_matrix` that does this gives some extra info as well to be cleaned up.
+```{r make.matrix, echo = TRUE}
+m <- make_matrix(test.data.binned)
+summary(m)
+```
+Now we calculate VAI using the following function `calc_vai` which is included for demo purposes:
+
+```{r demo.function, echo = TRUE}
+calc_vai <- function(df) {
+     
+     df$vai <- (df$bin.hits / df$lidar.pulses) 
+     df$vai <- df$vai * 8 #adjust for max lai?
+     df$vai <- df$vai * -1
+     df$vai <- log(1.0 - df$vai*0.9817)/0.5
+     df[is.na(df)] <- 0
+     return(df)
+ 
+}
+```
+```{r vai, echo = TRUE}
+m <- calc_vai(m)
+```
+
+Then comes Rugosity, but it is the end of the day and I need to get home so here is the rest which also includes a draft hit grid:
+
+```{r restofcode, echo = TRUE}
+#######new test
+m <- calc_mean_leaf_ht(m)
+m <- calc_std_bin(m)
+
+#the jam
+calc_rugosity(m)
+
+#hit grid
+ggplot(m, aes(x = xbin, y = zbin))+ 
+     geom_tile(aes(fill = vai))+
+     scale_fill_gradient(low="palegreen1", high="dark green", 
+                         name="LiDAR\n Method One")+
+     #scale_y_continuous(breaks = seq(0, 20, 5))+
+     # scale_x_continuous(minor_breaks = seq(0, 40, 1))+
+     theme(axis.line = element_line(colour = "black"),
+           panel.grid.major = element_blank(),
+           panel.grid.minor = element_blank(),
+           panel.background = element_blank())+
+     xlim(0,40)+
+     ylim(0,40)+
+     xlab("Distance along transect (m)")+
+     ylab("Height above ground (m)")
+
+
+
+
+```
+
+
