@@ -20,14 +20,14 @@ source("functions.R")
 # # test.2 <- add_can_hits(test.2)
 # # test.2 <- add_mar
 # 
-# data_dir <- "./data/rice/"
+data_dir <- "./data/rice/"
 #filename <- "osbs_28_west.csv"
 #filename <- "VDGIF-C5-06072016.csv"
-filename <- "rice_control_one.CSV"
+filename <- "rice_control_two.CSV"
 # DEBUG <- FALSE
 write_out <- FALSE
 
-
+comp.test.data <- read.csv("./data/rice/rice_control_one.CSV", header = FALSE)
 # Looking at test.data from Sweet Briar College
 test.data <- read.pcl(data_dir, filename)
 
@@ -35,7 +35,7 @@ test.2 <- code_hits(test.data)
 # test.2 <- add_sky_hits(test.2)
 # test.2 <- add_can_hits(test.2)
 # test.2 <- add_markers(test.2)
-head(test.2)kers(test.2)
+head(test.2)
 # head(test.2)
 
 pcl.diagnostic.plot(test.2, "", -1e+09)
@@ -47,7 +47,7 @@ length(which(test.2$return_distance < -9999))
 which((test.2$return_distance <= -9999))
 test.2[test.2$return_distance <= -9999 & !is.na(test.2$return_distance), ] 
 
-test.data.binned <- split_transects_from_pcl(test.2)
+test.data.binned <- split_transects_from_pcl(test.2, 30, 10)
 
 head(test.data.binned)
 summary(test.data.binned)
@@ -56,18 +56,42 @@ summary(test.data.binned)
 ###########33
 ###########
 ###########
-# m1 <- make_matrix(test.data.binned)
 m.test <- make_matrix(test.data.binned)
+p <- test.data.binned
+
+
 m1 <- m.test
 
-# I think we need to make the lidar returns = 0
-# m1$lidar_returns[is.na(m1$lidar_returns)] <- 0
-m1$vai <- calc_vai(m1)
 
 
+
+#now VAI
+m1 <- calc_vai(m1)
+
+
+#######new test
+m1 <- calc_mean_leaf_ht(m1)
+m3 <- calc_std_bin(m1)
+
+calc_rugosity(m3)
+jj$h== <- ( (m3$vai * m3*zbin) / m3$sum.vai.by.xbin)
+
+
+# m1$mean.leaf.ht.by.xbin <- m1$x / m1$sum.vai.by.xbin
+# 
+# df <- m1
+# p <- aggregate(vai ~ zbin, data = df, FUN = function(x) sum( (x$vai * x$zbin)/ sum(x$vai))
+# stdBin = sum( ((df$vai * (df$zbin - mean.leaf.ht)^2) )/ sum(df$vai))
 
 rugosity <- calc_rugosity(m1)
 m2 <- m1
+
+m1.test <- calc_sum_vai(m1)
+m1.test$mean.leaf.ht  <- calc_rugosity(m1.test)
+df <- m1.test
+yup <- sum( (df$vai * df$zbin)/ df$sum.vai.by.zbin) 
+
+max.vai <- max_vai(m1)
 m2$vai <- vai_adjust_lai_max(m2)
 rugosity2 <- calc_rugosity(m2)
 
@@ -88,6 +112,7 @@ sd(m.new$return_distance, na.rm=TRUE)
 
 m.vai <- bin_vai(m1)
 
+table(m1[c(1,3)])
 
 
 m1$vai[!is.finite(m1$vai)] <- 0

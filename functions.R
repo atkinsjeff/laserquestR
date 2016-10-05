@@ -13,7 +13,7 @@ library(ggplot2)
 # Import PCL data function
 read.pcl <- function(data_dir, filename) {
      f <- file.path(data_dir, filename)
-     df <- read.csv(f, header=FALSE, col.names = c("return_distance", "intensity"))
+     df <- read.csv(f, header=FALSE, col.names = c("return_distance", "intensity"), blank.lines.skip = FALSE)
      df$index <- as.numeric(rownames(df))
      df = df[,c(3, 1, 2)]
      df
@@ -129,7 +129,7 @@ read_and_check_pcl <- function(data_dir, filename, DEBUG = FALSE) {
 # to csv if a path and name are given
 ##########################################
 ##########################################
-split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE, data_dir, output_file_name) {
+split_transects_from_pcl <- function(pcl_data, transect.length, marker.distance, DEBUG = FALSE, write_out = FALSE, data_dir, output_file_name) {
      
      # Initialize count for segments (expecting 4 segments per transect)
      # Some returns before beginning of first segment and some after last
@@ -146,6 +146,10 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
           
           if(pcl_data$return_distance[i] <= -9999 & !is.na(pcl_data$return_distance[i])){
                segment_num <- segment_num + 1  
+               
+          }
+          if (segment_num == ((transect.length/marker.distance) + 1)) {
+               break
           }
      }
      
@@ -157,9 +161,11 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
      
      # For each segment there should only be 4 in total -- checked with test
      # but we're flexible here. Uses cut() with labels = FALSE to return
+     
+     #### this needs to be adjusted to account for smaller transects
      # a vector of integer categories for each "chunk" within each segment
      # This should go from 1-10 and be spaced evenly in "index" space
-     # for (i in 1:(max(pcl_data$seg_num) - 1)) {
+#for (i in 1:(max(pcl_data$seg_num) - 1)) {
       for (i in 1:(max(pcl_data$seg_num))) {
           this_segment <- subset(pcl_data, pcl_data$seg_num == i)
           this_segment$chunk_num <- cut(this_segment$index, 10, labels = FALSE)
@@ -169,9 +175,12 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
      # Make sure we didn't make too many chunks in any segment
      stopifnot(max(results$chunk_num) < 11)
      
+     #stopifnot(max(results$seg_num) < ((transect.length/marker.distance) + 1))
+#}
      # Code segment to create zbin and xbin
-     results$xbin <- ((results$seg_num * 10) - 10)  +results$chunk_num
-     results$zbin <- floor(results$return_distance)
+     results$xbin <- ((results$seg_num * 10) - 10)  + results$chunk_num
+     results$zbin <- ceiling(results$return_distance)
+     results$zbin[results$sky_hit == "TRUE"] <- 0
      # Check final output
      if (DEBUG) head(results)
      if (DEBUG) tail(results)
@@ -194,7 +203,7 @@ split_transects_from_pcl <- function(pcl_data, DEBUG = FALSE, write_out = FALSE,
 ##########################################
 
 
-make_matrix <- function(df) {
+make_matrix_part_one <- function(df) {
      #ultimately this should actually make an empty data frame or something
      #and it should go from x 1:40 and z to whatever so there are empty values in there
      z = df
@@ -213,11 +222,35 @@ make_matrix <- function(df) {
      p <- merge(p, zz, by = c("xbin"), all = TRUE)
      p <- merge(p, zzz, by = c("xbin"), all = TRUE)
      p <- merge(p, zzzz, by = c("xbin"), all = TRUE)
+     replace(p, is.na(p), 0)#This will correct for any gaps w/out msmts as all NAs will be 0
      # 
      # plyr::rename(p, c("xbin" = "xbin", "zbin" = "zbin", "index" = "lidar_pulses", "return_distance" = "bin_height_sd","return_distance.y" = "bin_height_mean","return_distance.x" = "lidar_returns" , "sky_hit" = "sky_hits", "can_hit" = "can_hits") )
       
 } 
 
+
+make_matrix_part_two <- function(df) {
+     #ultimately this should actually make an empty data frame or something
+     p <- df
+     
+     df2 <- expand.grid(xbin = c(1:max((p$xbin))),
+                       zbin = c(0:max((p$zbin))))
+     
+     #
+     q <- merge(p, data.frame(table(df2[1:2])), all.y=TRUE)
+     #now to add empty rows as NA
+     #q <- merge(p, data.frame(table(p[1:2]))[-c(3:9)],all.y=TRUE)
+     replace(q, is.na(q), 0)#This will correct for any gaps w/out mesmts as all NAs will be 0
+
+} 
+
+make_matrix <- function(df) {
+     df <- make_matrix_part_one(df)
+     df <- make_matrix_part_two(df)
+     df$xbin <- as.integer(as.character(df$xbin))
+     df$zbin <- as.integer(as.character(df$zbin))
+     return(df)
+}
 
    
 make_sky <- function(df) {
@@ -244,25 +277,29 @@ calc_vai <- function(df) {
      #       df$vai[i] = 0
      #  }
      # }
-     vai = (df$bin.hits / df$lidar.pulses) 
-     vai = vai * 8 #adjust for max lai?
-     vai = vai * -1
-     vai <- log(1.0 - vai*0.9817)/0.5
-     
-     #subfunction to create max.vai for each column
+     df$vai <- (df$bin.hits / df$lidar.pulses) 
+     df$vai <- df$vai * 8 #adjust for max lai?
+     df$vai <- df$vai * -1
+     df$vai <- log(1.0 - df$vai*0.9817)/0.5
+     df[is.na(df)] <- 0
+     return(df)
+ 
+}
+
+max_vai <- function(df) {
      z = df
      max.vai <- aggregate(vai ~ xbin, data = z, FUN = max)
      p <- merge(df, z, by = c("xbin"), all = TRUE)
+     
 }
-
-vai_adjust_lai_max <- function(df) {
-     vai.adj = df$vai * 8 * df$zbin
-}
-
-vai_extinct <- function(df) {
-     vai = log(1.0 - df$vai*0.9817) / 0.5
-     vai = df$vai * -1
-     }
+# vai_adjust_lai_max <- function(df) {
+#      vai.adj = df$vai * 8 * df$zbin
+# }
+# 
+# vai_extinct <- function(df) {
+#      vai = log(1.0 - df$vai*0.9817) / 0.5
+#      vai = df$vai * -1
+#      }
 
 
 
@@ -271,24 +308,107 @@ bin_vai <- function(df) {
      df$vai <- calc_vai(df)
 }
 
-calc_rugosity <- function(df) {
-     df$vai = df$vai * df$zbin
-     p <- aggregate(vai ~ xbin, data = df, FUN = sd)
-     p$vai[is.na(p$vai)] <- 0
-     p$vai[!is.finite(p$vai)] <- 0
-     print(p)
-     sd(p$vai)
+calc_sum_vai <- function(df) {
+
+          z <- setNames(aggregate(vai ~ xbin, data = df, FUN = sum), c("xbin", "sum.vai.by.xbin")) #calculates the sum of VAI by each column
+          merge(df, z, by = c("xbin"), all = TRUE)
+                
+}
+
+
+calc_vai_z <- function(df) {
+     df$vai_z <- df$vai * df$zbin
+     #print(df$vai_z)
+     z <- setNames(aggregate(vai_z ~ xbin, data = df, FUN = sum), c("xbin", "mean.leaf.ht.unadj"))
+     merge(df, z, by = c("xbin"), all = TRUE)
      
 }
 
-calc_rugosity_adj <- function(df) {
-     p <- aggregate(adj.vai ~ xbin, data = df, FUN = sd)
-     p$adj.vai[is.na(p$adj.vai)] <- 0
-     p$adj.vai[!is.finite(p$adj.vai)] <- 0
-     print(p)
-     sd(p$adj.vai)
+calc_bin_ht <- function(df) {
+     df$mean.leaf.ht.by.xbin <- df$mean.leaf.ht.unadj / df$sum.vai.by.xbin
+     return(df)
+}
+
+calc_mean_leaf_ht <- function(df) {
+     df <- calc_sum_vai(df)
+     df <- calc_vai_z(df)
+     df <- calc_bin_ht(df)
+}
+
+calc_std_bin <- function(df) {
+     
+     df$std.bin.pre <- df$vai * ( (df$zbin - df$mean.leaf.ht.by.xbin)^2)
+     z <- setNames(aggregate(std.bin.pre ~ xbin, data = df, FUN = sum), c("xbin", "std.bin.num"))
+     df <- merge(df, z, by = c("xbin"), all = TRUE)
+     df$std.bin <- df$std.bin.num / df$sum.vai.by.xbin
+     return(df)
      
 }
+
+
+calc_rugosity <- function(df) {
+     df$stdstd <- df$std.bin * df$std.bin
+     stdstd = sum(df$stdstd, na.rm = TRUE) 
+     print(stdstd)
+     stdstd = stdstd / max(df$zbin)
+     print(stdstd)
+     stdstd = stdstd / max(df$xbin)
+     
+     print(stdstd)
+     
+     
+     meanstd = ((sum(df$std.bin, na.rm = TRUE) ) /max(df$zbin)) / max(df$xbin)
+     print(meanstd)
+    #result <- sum( (df$vai * df$zbin))/ df$sum.vai.by.xbin
+    #
+    rugosity = (stdstd - meanstd * meanstd)^0.5 
+    print(rugosity)
+}
+
+
+     
+     
+     
+
+    # function [ R ] = Rugosity(el,Z)
+    # %R = Rugosity(el,Z)
+    # %Written by Tim Morn, 2014
+    # %R  = Rugosity
+    # %el = VAI
+    # %Z  = Effective leaf height
+    # 
+    # maxel=max(el,[],1);
+    # stdStd=0;meanStd=0;
+    # 
+    # for i=1:40
+    # heightBin = sum(el(:,i).*Z(:,i))/sum(el(:,i));                         %Mean column leaf height
+    # stdBin    = sum(el(:,i).*((Z(:,i)-heightBin).^2))/sum(el(:,i));        %Std of leaf heights in column
+    # stdStd    = nansum([stdStd stdBin*stdBin/length(maxel)]);              %Accums the square of std (variance) of leaf heights in plot
+    # meanStd   = nansum([meanStd stdBin/length(maxel)]);                    %Accums the mean of std dev of leaf heights in plot
+    # end
+    # 
+    # % stdStd(current_plot) = stdStd+stdBin*stdBin/length(maxel); %accumulates the square of std (variance) of leaf heights in plot
+    # % meanStd(current_plot) = meanStd(current_plot)+stdBin/length(maxel);      %accumulates the mean of std dev of leaf heights in plot
+    # % stdStd = (stdStd-meanStd.*meanStd).^0.5;
+    # 
+    # R = (stdStd-meanStd.*meanStd).^0.5;                                        %Horizontal std dev of vertical (column) std dev of leaf height. Rugosity
+          
+
+#         #Mean leaf height of leaves in columns
+#      p <- aggregate(vai ~ zbin)
+#      stdBin = sum( ((df$vai * (df$zbin - mean.leaf.ht)^2) )/ sum(df$vai))  #Standard deviation of leaf heights in columns
+#      
+#      sum(el(:,i).*((Z(:,i)-heightBin).^2))/sum(el(:,i))
+#      df$vai = df$vai * df$max.ht
+#      p <- aggregate(vai ~ xbin, data = df, FUN = sd)
+#      # p$vai[is.na(p$vai)] <- 0
+#      # p$vai[!is.finite(p$vai)] <- 0
+#      print(p)
+#      sd(p$vai)
+#      
+# }
+
+
 
 calc_rugosity_jess <- function(df) {
      p <- aggregate(max.ht ~ xbin, data = df, FUN = sd)
