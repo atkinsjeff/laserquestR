@@ -1,0 +1,162 @@
+---
+title: "UVA Test Rugosity"
+author: "Jeff Atkins"
+date: "October 6, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(ggplot2)
+# Source functions
+source("functions.R")
+```
+
+## UVA Plot A4-01 West
+
+```{r main, echo = FALSE}
+data_dir <- "./data/"
+
+filename <- "UVAX_A4_01W.CSV"
+
+test.data <- read.pcl(data_dir, filename)
+
+test.2 <- code_hits(test.data)
+
+
+
+pcl.diagnostic.plot(test.2, "A4-01 West", -1e+08)
+
+test.data.binned <- split_transects_from_pcl(test.2, 40, 10)
+
+csc_metrics(test.data.binned)
+
+m1 <- make_matrix(test.data.binned)
+m1 <- calc_vai(m1)
+
+
+#######new test
+m1 <- calc_mean_leaf_ht(m1)
+m1 <- calc_std_bin(m1)
+
+calc_rugosity(m1)
+
+vai.label =  expression(paste(VAI~(m^2 ~m^-2)))
+x11(width = 8, height = 6)
+ggplot(m1, aes(x = xbin, y = zbin))+ 
+     geom_tile(aes(fill = vai))+
+     scale_fill_gradient(low="white", high="dark green", 
+                         name=vai.label)+
+     #scale_y_continuous(breaks = seq(0, 20, 5))+
+     # scale_x_continuous(minor_breaks = seq(0, 40, 1))+
+     theme(axis.line = element_line(colour = "black"),
+           panel.grid.major = element_blank(),
+           panel.grid.minor = element_blank(),
+           panel.background = element_blank())+
+     xlim(0,30)+
+     ylim(0,30)+
+     xlab("Distance along transect (m)")+
+     ylab("Height above ground (m)")+
+     ggtitle("A4-01 WEST")+
+     theme(plot.title = element_text(lineheight=.8, face="bold"))
+```
+
+
+
+### UVA Plot A4-01 East
+
+```{r main2, echo = FALSE}
+data_dir <- "./data/"
+
+filename <- "UVAX_A4_01E.CSV"
+
+test.data <- read.pcl(data_dir, filename)
+
+test.2 <- code_hits(test.data)
+
+
+
+pcl.diagnostic.plot(test.2, "A4-01 East", -1e+08)
+
+test.data.binned <- split_transects_from_pcl(test.2, 40, 10)
+
+csc_metrics(test.data.binned)
+
+m1 <- make_matrix(test.data.binned)
+m1 <- calc_vai(m1)
+
+
+#######new test
+m1 <- calc_mean_leaf_ht(m1)
+m1 <- calc_std_bin(m1)
+
+calc_rugosity(m1)
+
+vai.label =  expression(paste(VAI~(m^2 ~m^-2)))
+x11(width = 8, height = 6)
+ggplot(m1, aes(x = xbin, y = zbin))+ 
+     geom_tile(aes(fill = vai))+
+     scale_fill_gradient(low="white", high="dark green", 
+                         name=vai.label)+
+     #scale_y_continuous(breaks = seq(0, 20, 5))+
+     # scale_x_continuous(minor_breaks = seq(0, 40, 1))+
+     theme(axis.line = element_line(colour = "black"),
+           panel.grid.major = element_blank(),
+           panel.grid.minor = element_blank(),
+           panel.background = element_blank())+
+     xlim(0,30)+
+     ylim(0,30)+
+     xlab("Distance along transect (m)")+
+     ylab("Height above ground (m)")+
+     ggtitle("A4-01 East")+
+     theme(plot.title = element_text(lineheight=.8, face="bold"))
+```
+
+### UVA Plot A4-01 Center
+
+```{r main3, echo = FALSE}
+data_dir <- "./data/"
+
+filename <- "UVAX_A4_01C.CSV"
+
+test.data <- read.pcl(data_dir, filename)
+
+test.2 <- code_hits(test.data)
+
+
+
+pcl.diagnostic.plot(test.2, "A4-01 Center", -1e+08)
+
+test.data.binned <- split_transects_from_pcl(test.2, 40, 10)
+
+csc_metrics(test.data.binned)
+
+m1 <- make_matrix(test.data.binned)
+m1 <- calc_vai(m1)
+
+
+#######new test
+m1 <- calc_mean_leaf_ht(m1)
+m1 <- calc_std_bin(m1)
+
+calc_rugosity(m1)
+
+vai.label =  expression(paste(VAI~(m^2 ~m^-2)))
+x11(width = 8, height = 6)
+ggplot(m1, aes(x = xbin, y = zbin))+ 
+     geom_tile(aes(fill = vai))+
+     scale_fill_gradient(low="white", high="dark green", 
+                         name=vai.label)+
+     #scale_y_continuous(breaks = seq(0, 20, 5))+
+     # scale_x_continuous(minor_breaks = seq(0, 40, 1))+
+     theme(axis.line = element_line(colour = "black"),
+           panel.grid.major = element_blank(),
+           panel.grid.minor = element_blank(),
+           panel.background = element_blank())+
+     xlim(0,30)+
+     ylim(0,30)+
+     xlab("Distance along transect (m)")+
+     ylab("Height above ground (m)")+
+     ggtitle("A4-01 Center")+
+     theme(plot.title = element_text(lineheight=.8, face="bold"))
+```
