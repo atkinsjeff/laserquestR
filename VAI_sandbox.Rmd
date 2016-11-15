@@ -1,0 +1,14 @@
+x <- c(1,1,1,1,1,2,2,3,3,4,4,4)
+z <- c(1,4,5,6,7,1,4,2,8,1,2,5)
+value <-c(9,9,9,9,9,9,9,9,9,9,9,9)
+
+
+df <- data.frame(x, z, value)
+mat <- matrix(0, 4, 8)
+
+data.frame(x,z, value)
+
+mat[cbind(df$x, df$z)] <- df$value
+
+df1 <- data.frame(mat)
+df <- setNames(data.frame(matrix(ncol = 5, nrow = 0)),paste0("hello", c(1:5)))

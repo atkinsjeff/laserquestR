@@ -1,51 +1,133 @@
+start.time <- Sys.time()
 # Source functions
 source("functions.R")
 
 # Set parameters
+#data_dir <- "./rice_control_one"
 data_dir <- "./data/"
-filename <- "osbs_28_west.CSV"
-DEBUG <- FALSE
+# <- "osbs_28_west.csv"
+#filename <- "VDGIF-T5-06072016.csv"
+filename <- "AF_G8_0729016.CSV"
+#filename <- "rice_control_one.CSV"
+
 write_out <- FALSE
 
-# Looking at test.data from Sweet Briar College
-test.data <- read_and_check_pcl(data_dir, filename, DEBUG = TRUE)
 
-test.2 <- read.pcl("./data/osbs_28_west.CSV")
-test.2 <- add_sky_hits(test.2)
-test.2 <- add_markers(test.2)
-head(test.2)
-pcl.diagnostic.plot(test.2, "OSBS", 15)
-# adding bins
-length(test.2[test.2$return_distance < -9999, 2])
-length(which(test.2$return_distance < -9999))
+test.data <- read.pcl(data_dir, filename)
+transect.length <- get.transect.length(test.data)
+test.2 <- code_hits(test.data)
 
 
-which((test.2$return_distance <= -9999))
-test.2[test.2$return_distance <= -9999 & !is.na(test.2$return_distance), ] 
+(length(which((test.data$return_distance <= -9999))) - 1)
 
-test.data.binned <- split_transects_from_pcl(test.2)
+test.2 <- adjust_by_user(test.2, 1.05)
 
-head(test.data.binned)
-summary(test.data.binned)
+# need to code in diagnostic plot better
+pcl.diagnostic.plot(test.2, filename)
 
-make_matrix(test.data.binned)
+test.data.binned <- split_transects_from_pcl(test.2, transect.length, 10)
+
+csc_metrics(test.data.binned, filename)
+
+m1 <- make_matrix(test.data.binned)
+
+m2 <- normalize_pcl_one(m1)
+m3 <- normalize_pcl_two(m2)
+m4 <- normalize_pcl_three(m3)
+
+m5 <- calc_vai(m4)
 
 
-####rry, the output is here:
-####
-####stdStd     = 0.9514       <- Rugosity
-####height2    = 3.9023       <- 
-####mode2      = 3.6332       <-
-####meanHt     = 3.500        <- mean height of the canopy
-####meanStd    = 3.0526       <- 
-####meanLAI    = 0.5845       <- mean LAI, but how measured?
-####meanTopel  = 7.1905       <- mean top of the canopy, like surface
-# stdStd height2 mode2 modeEl meanHeight meanStd meanLAI meanTopel_CPAll
+summary.matrix <- make_summary_matrix(test.data.binned, m5)
+
+stuff <- calc_rugosity(summary.matrix, m5, filename)
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+time.taken
+
+# 
+# dee <- setNames(aggregate(dee ~ xbin, data = m4, FUN = sum), c("xbin", "sum.dee"))
 # 
 # 
-# ans =
+# m2 <- m1[with(m1, order(xbin, zbin)), ]
+# 
+# # for loop for this jenk
+# sat.count <- 0
+# m2$sat.count <- 0
+# for (i in 1:nrow(m2)) {
+#      x.counter = 1
 #      
-#      0.9514    3.9023    3.6332    3.5000    3.0526    0.5845    1.9851    7.1905
-# the code prints it to the command line
-# i usually then pasted it into an excel sheet
+#      for(j in 2:nrow(m2)){
+#          if(m2$xbin[j] == x.counter ){
+#      
+#           m2$sat.count[j] = m2$sat.count[j-1] + m2$bin.hits[j]
+#           
+#      }else {
+#           x.counter = x.counter + 1 
+#           next
+#      }
+#           next
+#      }
+# }
+# 
+# m2$phi <- (m2$can.hits)
+# 
+# m2$sat.pct <- m2$sat.count / m2$can.hits
+# 
+# k <- setNames(aggregate(can.hits ~ xbin, data = df, FUN = max), c("xbin", "can.hits"))
+# 
+# m3 <- m2
+# 
+# m3$can.hits <- k$can.hits[match(m3$xbin, k$xbin)]
+# m3 <- merge(m2, k, by ="xbin", all = FALSE)
+# 
+# m1 <- calc_vai(m1)
+summary.matrix <- make_summary_matrix(test.data.binned, m5)
+# #####################
+# df <- m1
+# df$cvr <- (df$bin.hits / df$lidar.returns) 
+# df[is.na(df)] <- 0
+# #adjust for max lai?
+# cvr1 <- which(df$cvr < 0.999999)
+# 
+# df$cvr[cvr1]
+# df$vai <- df$cvr * 8
+# 
+# df$vai <- (log(1.0 - df$cvr[cvr1]*0.9817)  * -1) /0.5
+# 
+# 
+# m5 <- merge(m1, summary.matrix, by = "xbin")
+# 
+# m5$el <- (m5$vai/ m5$sum.vai ) * 100
+# m5$std.bin.num <- m5$el * ((m5$zbin  - m5$height.bin)^2)
+# print(j)
+
+stuff <- calc_rugosity(summary.matrix, m5, filename)
+
+write.pcl.to.csv(stuff, filename)
+
+write.csv(m1, "dgif-t5.csv")
+#### this makes a hit grid. keep it.
+#### 
+#### 
+vai.label =  expression(paste(VAI~(m^2 ~m^-2)))
+x11(width = 8, height = 6)
+ggplot(m5, aes(x = xbin, y = zbin))+ 
+     geom_tile(aes(fill = vai))+
+     scale_fill_gradient(low="white", high="dark green", 
+                         name=vai.label)+
+     #scale_y_continuous(breaks = seq(0, 20, 5))+
+     # scale_x_continuous(minor_breaks = seq(0, 40, 1))+
+     theme(axis.line = element_line(colour = "black"),
+           panel.grid.major = element_blank(),
+           panel.grid.minor = element_blank(),
+           panel.background = element_blank())+
+     xlim(0,transect.length)+
+     ylim(0,35)+
+     xlab("Distance along transect (m)")+
+     ylab("Height above ground (m)")+
+     ggtitle(filename)+
+     theme(plot.title = element_text(lineheight=.8, face="bold"))
+
+
 
