@@ -61,6 +61,7 @@ pcl.diagnostic.plot <- function(df, filename) {
 get.transect.length <- function (df) {
      
      transect.length <- (length(which((df$return_distance <= -9999))) - 1) * 10
+     return(transect.length)
      
 }
 ##########################################
@@ -149,7 +150,7 @@ for (i in 1:(max(pcl_data$seg_num) - 1)) {
 }
      # Code segment to create zbin and xbin
      results$xbin <- ((results$seg_num * 10) - 10)  + results$chunk_num
-     results$zbin <- ceiling(results$return_distance)
+     results$zbin <- round(results$return_distance)
      results$zbin[results$sky_hit == "TRUE"] <- 0
      # Check final output
      if (DEBUG) head(results)
@@ -214,25 +215,35 @@ make_matrix_part_one <- function(df) {
      #ultimately this should actually make an empty data frame or something
      #and it should go from x 1:40 and z to whatever so there are empty values in there
      z = df
-     z <- subset(z, return_distance >= 0)
+     #z <- subset(z, return_distance >= 0)
      # zz <- setNames(aggregate(return_distance ~ xbin, data = z, FUN = mean), c("xbin", "mean.ht"))
      # zzz <-setNames(aggregate(return_distance ~ xbin, data = z, FUN = sd), c("xbin", "sd.ht"))
      # zzzz <- setNames(aggregate(return_distance ~ xbin, data = z, FUN = max), c("xbin", "max.ht"))
+     
+     # number of lidar returns for entire column
      l <- setNames(aggregate(index ~ xbin, data = df, FUN = length), c("xbin", "lidar.pulses"))
+     print(l)
+     # number of return per x,z bin in the canopy
      m <- setNames(aggregate(return_distance ~ xbin + zbin, data = df, FUN = length), c("xbin", "zbin","bin.hits"))
      m <- m[!m$zbin < 0, ]
-     n <- setNames(aggregate(sky_hit ~ xbin, data = df, FUN = sum), c("xbin", "sky.hits"))
-     k <- setNames(aggregate(can_hit ~ xbin, data = df, FUN = sum), c("xbin", "can.hits"))
      
-     p <- Reduce(function(x, y) merge(x,y, all = TRUE), list(m, l, n, k))
-     # p <- merge(l, m, by = c("xbin"), all = TRUE)
-     # p <- merge(p, n, by = c("xbin"), all = TRUE)
-     # p <- merge(p, k, by = c("xbin"), all = TRUE)
+     # number of sky.hits per column (x)
+     n <- setNames(aggregate(sky_hit ~ xbin, data = df, FUN = sum), c("xbin", "sky.hits"))
+     
+     # number of canopy returns in column
+     k <- setNames(aggregate(can_hit ~ xbin, data = df, FUN = sum), c("xbin", "can.hits"))
+     print(k)
+     #p <- Reduce(function(x, y) merge(x,y, all = TRUE), list(m, l, n, k))
+      p <- merge(l, m, by = c("xbin"), all = TRUE)
+      p <- merge(p, n, by = c("xbin"), all = TRUE)
+      p <- merge(p, k, by = c("xbin"), all = TRUE)
+      
      # p <- merge(p, zz, by = c("xbin"), all = TRUE)
      # p <- merge(p, zzz, by = c("xbin"), all = TRUE)
      # p <- merge(p, zzzz, by = c("xbin"), all = TRUE)
      replace(p, is.na(p), 0)#This will correct for any gaps w/out msmts as all NAs will be 0
- 
+     
+     
 } 
 
 
@@ -248,7 +259,7 @@ make_matrix_part_two <- function(df) {
      #now to add empty rows as NA
      #q <- merge(p, data.frame(table(p[1:2]))[-c(3:9)],all.y=TRUE)
      replace(q, is.na(q), 0)#This will correct for any gaps w/out mesmts as all NAs will be 0
-
+     
 } 
 
 # this command combines the previous functions
@@ -257,18 +268,140 @@ make_matrix <- function(df) {
      df <- make_matrix_part_two(df)
      df$xbin <- as.integer(as.character(df$xbin))
      df$zbin <- as.integer(as.character(df$zbin))
+     
+     k <- setNames(aggregate(can.hits ~ xbin, data = df, FUN = max), c("xbin", "can.hits"))
+     df$can.hits <- k$can.hits[match(df$xbin, k$xbin)]
+     
+     l <- setNames(aggregate(lidar.pulses ~ xbin, data = df, FUN = max), c("xbin", "lidar.pulses"))
+     df$lidar.pulses <- l$lidar.pulses[match(df$xbin, l$xbin)]
+     
      return(df)
 }
 
 
+#### light saturation correction
+normalize_pcl_one <-  function(df) {
+     # for loop for this jenk
+     # what we are doing is counting up the number of canopy hits to an x,z point in the canopy
+     
+     # first we sort
+     df <- df[with(df, order(xbin, zbin)), ]
+     
+     df$hit.count <- 0   #creates and empty column of zeros
+     for (i in 1:nrow(df)) {
+          x.counter = 1  #a counter! woohoo
+          
+          for(j in 2:nrow(df)){
+               if(df$xbin[j] == x.counter ){
+                    
+                    df$hit.count[j] = df$hit.count[j-1] + df$bin.hits[j]
+                    
+               }else {
+                    x.counter = x.counter + 1 
+                    next
+               }
+               next
+          }
+     }
+     return(df)
+}
+
+normalize_pcl_two <- function(df) {
+
+     eq1 = (df$can.hits - df$hit.count) / df$can.hits
+     eq2 = ((df$can.hits + 1) - df$hit.count) / (df$can.hits + 1)
+     
+     # if can.hits and lidar.pulses are equal, then canopy is saturated
+     
+     df <- transform(df, phi = ifelse(lidar.pulses == can.hits, eq1, eq2))
+}
+
+normalize_pcl_three <- function(df) {
+     
+     df$dee <- 0   #creates and empty column of zeros
+     for (i in 1:nrow(df)) {
+          x.counter = 1  #a counter! woohoo
+          
+          for(j in 2:nrow(df)){
+               if(df$phi[j-1] > 0 && df$phi[j] > 0 && df$xbin[j] == x.counter ){
+                    
+                    df$dee[j] = log(df$phi[j-1] / df$phi[j])
+                    
+               }else {
+                    df$dee[j] = 0
+                    x.counter = x.counter + 1 
+                    next
+               }
+               next
+          }
+     }
+     
+     # now to sum up dee to make sum.dee the %total adjusted hits in the column
+     q <- setNames(aggregate(dee ~ xbin, data = df, FUN = sum), c("xbin", "sum.dee"))
+     df$sum.dee <- q$sum.dee[match(df$xbin, q$xbin)]
+     
+     
+    
+     
+     # now to make fee a percentage of the percent hits at that level
+     eq.fee = df$dee / df$sum.dee
+     
+     # for all columns where dee is >0 i.e. that is saturated
+     df <- transform(df, fee = ifelse(sum.dee > 0, eq.fee, 0))
+     return(df)
+}
+     # 
+     # if(df$lidar.pulses == df$can.hits){
+     #      df$phi = (df$can.hits - df$hit.count) / df$can.hits
+     # }else{
+     #      df$phi = ((df$can.hits + 1) - df$hit.count) / (df$can.hits + 1)
+     # }
+
+
+####
+# # asum=sum(d); %Total hits in a bin
+# NoSky = find(asum>0.0);
+# phi(1,NoSky)=1.0;
+# for ci =2:nvertbins
+# c(ci,NoSky) = d(ci-1,NoSky)+c(ci-1,NoSky); % Next bin down of c + bins below it, so total hits that have happened by that point
+# saturated = find(c(ci,NoSky)>=asum(NoSky)); %Find when all the pulses have hit (note that this is only for transects which have no sky hits)
+# phi(ci,NoSky)=(asum(NoSky)-c(ci,NoSky))./asum(NoSky) ; %Percent of saturation at a given height
+# phi(ci,NoSky(saturated))=(asum(NoSky(saturated))+1-c(ci,NoSky(saturated)))./(asum(NoSky(saturated))+1) ;
+# nonzero = find(phi(ci-1,:)>=0.00000001 & phi(ci,:)>=0.00000001 ); % 
+# dee(ci-1,nonzero)=log(phi(ci-1,nonzero)./phi(ci,nonzero)); %Ln of the saturation perc for the bin below divided by current bin
+# end %for ci
+# sumdee = sum(dee); %total adjusted hits in a column
+# %nonzero=find(sumdee>0.000000001);
+# for ch =1:binmax
+# if sumdee(ch)>0.000000001 %if more than 0 adjusted hits
+# fee(:,ch)=dee(:,ch)./sumdee(ch); %fee is a perc. of the percent hits at that level
+# end
+# end
+# 
+# cvr1=find(cvr<0.999999999999); %Anything that is not perfectly saturated
+
 #####this series of functions creates VAI
 calc_vai <- function(df) {
      
-     df$cover.fraction <- (df$bin.hits / df$lidar.pulses) 
-      #adjust for max lai?
-     # cover.one <- which(df$vai != 0)
+     # this should be how much cover (cvr) is in each, x,z bin index value
+     df$cvr <- (df$bin.hits / df$can.hits) 
      
-     df$vai <- (log(1.0 - df$cover.fraction*0.9817)  * -1) /0.5
+     # olai has a maxium value of 8. eq one is for use on areas that are not saturated
+     eq.olai = (log(1.0 - (df$can.hits/df$lidar.pulses)*0.9817)  * -1) /0.5
+     
+     ##### you need to do this for all of those columns! olai by column
+     # for all columns that are less than saturated, adjust olai
+     df <- transform(df, olai = ifelse(lidar.pulses > can.hits, eq.olai, 8))
+     
+     # now make adjusted vai
+     eq.vai1 = df$olai * df$fee
+     eq.vai2 = df$olai * df$cvr
+     df <- transform(df, vai = ifelse(fee > 0,  eq.vai1, eq.vai2 ))
+   
+     # df[is.na(df)] <- 0
+     
+     
+     # df$vai <- (log(1.0 - df$cvr*0.9817)  * -1) /0.5
      df[is.na(df)] <- 0
      return(df)
  
@@ -279,33 +412,46 @@ calc_vai <- function(df) {
 #############################
 ## Need to make a summary matrix now based on each column
 
+# This makes a dataframe that is as long as a transect is. If the transect is 40 m, this data frame has 40 rows.
+
 make_summary_matrix <- function(df, m) {
-     # df$xbin <- as.factor(df$xbin)
+     
      df <- subset(df, return_distance > 0)
      
+     # mean height
      a <- setNames(aggregate(return_distance ~ xbin, data = df, FUN = mean, na.rm = FALSE, na.action = 'na.pass'), c("xbin", "mean.ht"))
      
-     
+     # standard deviation of column height
      b <- setNames(aggregate(return_distance ~ xbin, data = df, FUN = sd, na.rm = FALSE, na.action = 'na.pass'), c("xbin", "sd.ht"))
      
+     # max height in column
      c <- setNames(aggregate(return_distance ~ xbin, data = df, FUN = max, na.rm = FALSE, na.action = 'na.pass'), c("xbin", "max.ht"))
      
+     # maximum value of VAI in the column
      d <- setNames(aggregate(vai ~ xbin, data = m, FUN = max, na.rm = FALSE, na.action = 'na.pass'), c("xbin", "max.vai"))
+     print(d)
+     # sum of VAI in column
      e <- setNames(aggregate(vai ~ xbin, data = m, FUN = sum, na.rm = FALSE, na.action = 'na.pass'), c("xbin", "sum.vai"))
+     
+     # standard deviation of VAI for column
      f <- setNames(aggregate(vai ~ xbin, data = m, FUN = sd, na.rm = FALSE, na.action = 'na.pass'), c("xbin", "sd.vai"))
      
      # this is height at which max vai occurs
      g <- m$zbin[match(d$max.vai, m$vai)]  
      g <- data.frame(g)
      colnames(g) <- c("max.vai.z")
+     print(g)
      
      #mean column leaf height that is the "heightBin" from Matlab code
-     m$vai.z <- m$vai * m$zbin
+     # first we make el
+     #m$el <- (m$vai / m$sum.vai) * 100
+     m$vai.z <- m$vai * (m$zbin +0.5)
      h <- setNames(aggregate(vai.z ~ xbin, data = m, FUN = sum, na.rm = FALSE,  na.action = 'na.pass'), c("xbin", "vai.z.sum"))
            
   
      # this section joins all these guys together
      p <- join_all(list(a, b, c, d, e, f, h), by = "xbin", type = "full")
+     p <- p[with(p, order(xbin)), ]
      p <- cbind(p, g)
 
     
@@ -316,6 +462,16 @@ make_summary_matrix <- function(df, m) {
      p$max.ht[is.na(p$max.ht)] <- 0
       
      p$height.bin <- p$vai.z.sum / p$sum.vai
+     p[is.na(p)] <- 0
+     # p$std.bin.num <- p$vai * ((p$zbin - p$height.bin)^2)
+     # 
+     # j <- aggregate(std.bin.num ~ xbin, data = p, FUN = sum, na.rm = FALSE, na.action = 'na.pass')
+     # j[is.na(j)] <- 0
+     # print(j)
+     # 
+     # p <- merge(p, j, by = "xbin")
+     # p$std.bin <- p$std.bin.num / p$sum.vai 
+     # first we sort
      
      return(p)
 }
@@ -328,45 +484,50 @@ make_summary_matrix <- function(df, m) {
 
 # RUGOSITY
 calc_rugosity <- function(df, m, filename) {
+     #df = the summary matrix
+     #m = vai matrix
      
      a <- subset(df, max.vai.z > 0)
-     
-     mean.height = mean(df$mean.ht)
-     message("MeanHeight")
-     print(mean.height)
      
      transect.length = max(df$xbin)
      message("Transect Length (m)")
      print(transect.length)
      
+     mean.height = mean(df$height.bin)
+     message("MeanHeight - plot mean of column mean return height")
+     print(mean.height)
+     
+     height.2 <- sd(df$height.bin)
+     message("Standard Deviation of mean height for each xbin - height2")
+     print(height.2)
+     
+     
      mode.el = mean(df$max.vai.z)
      message("Mean Height of Maximum Return Density -- modeEl")
      print(mode.el)
      
-     height.2 <- sd(df$mean.ht)
-     message("Standard Deviation of mean height for each xbin - height2")
-     print(height.2)
+     
+     df$max.vai.sq <- df$max.vai.z^2
+     mode.2 <- mean(df$max.vai.sq)
+     mode.2 = (mode.2 - (mode.el * mode.el))^0.5
+     message("Mean height of squared max VAI whatever the hell that is -- or mode2")
+     print(mode.2)
+     
+     
      
      max.el = max(df$max.vai.z)
      message("Maximum VAI for entire transect -- max el!")
      print(max.el)
      
-     b <- subset(df, max.vai > 0)
-     b$max.vai.sq <- b$max.vai^2
-     mode.2 <- mean(b$max.vai.sq)
-     message("Mean height of squared max VAI whatever the hell that is -- or mode2")
-     print(mode.2)
+
      
      max.can.ht = max(df$max.ht)
      message("Max canopy height (m)")
      print(max.can.ht)
      
-    
-     
      mean.max.ht = mean(df$max.ht)
      message("Mean Max canopy height (m) -- meanTopel w/ deep gaps removed")
      print(mean.max.ht)
-     
      
      mean.vai = mean(df$sum.vai)
      message("Mean VAI")
@@ -381,41 +542,60 @@ calc_rugosity <- function(df, m, filename) {
      message("Deep Gaps")
      print(deep.gaps)
      
-     porosity = deep.gaps/transect.length
-     message("Bin porosity")
+     porosity = sum(m$bin.hits == 0) / length(m$bin.hits)
+     message("Canopy porosity")
      print(porosity)
      
      #being rugosity intermediates
-      
+     
      #first we adjust the vai at each x,z by the z height of the bin
      combo.meal <- merge(df, m, by = "xbin")
+
+     combo.meal$std.bin.num <- combo.meal$vai * (((combo.meal$zbin + 0.5)  - combo.meal$height.bin)^2)
      
-     combo.meal$std.bin.num <- combo.meal$vai * ((combo.meal$zbin  - combo.meal$height.bin)^2)
      j <- aggregate(std.bin.num ~ xbin, data = combo.meal, FUN = sum, na.rm = FALSE, na.action = 'na.pass')
      j[is.na(j)] <- 0
      
+     
      super.size <- merge(df, j, by = "xbin")
+     
      super.size$std.bin <- super.size$std.bin.num / super.size$sum.vai
      
-
-     super.size$std.std.pre <- (super.size$std.bin * super.size$std.bin) / transect.length
-     super.size$std.std.pre[is.na(super.size$std.std.pre)] <- 0
-     std.std <- sum(super.size$std.std.pre)
-     # super.size$std.std.pre[is.infinite(super.size$std.std.pre)] <- 0
-
-     super.size$mean.std.pre <- (super.size$std.bin / transect.length)
-     super.size$mean.std.pre[is.na(super.size$mean.std.pre)] <- 0
+     super.size$std.bin.squared <- (super.size$std.bin^2)
      
-     # super.size$mean.std.pre[is.infinite(super.size$mean.std.pre)] <- 0
-     mean.std = sum(super.size$mean.std.pre)
+     super.size[is.na(super.size)] <- 0
+     print(super.size)
+     std.std = sum(super.size$std.bin.squared)
+     std.std = std.std/transect.length
+     
+     mean.std = sum(super.size$std.bin)
+     mean.std = mean.std/transect.length
+     
+     # super.size$std.std.pre <- (super.size$std.bin^2) / transect.length 
+     # super.size$std.std.pre[is.na(super.size$std.std.pre)] <- 0
+     # 
+     # print(super.size)
+     # std.std <- sum(super.size$std.std.pre)
 
+     # super.size$std.std.pre[is.infinite(super.size$std.std.pre)] <- 0
+     
+     # super.size$mean.std.pre <- (super.size$std.bin / transect.length)
+     # super.size$mean.std.pre[is.na(super.size$mean.std.pre)] <- 0
+     # 
+     # # super.size$mean.std.pre[is.infinite(super.size$mean.std.pre)] <- 0
+     # mean.std = sum(super.size$mean.std.pre)
+     # print(super.size)
+     # super.size$mean.std.pre <- super.size$std.bin / transect.length
+     # mean.std = sum(super.size$mean.std.pre)
+     
+     
      message("Square of leaf height variance (stdStd from old script)")
      print(std.std)
      
- 
+     
      message("Mean Standard deviation of leaf heights -- meanStd")
      print(mean.std)
-    
+     
      rugosity = (std.std - mean.std * mean.std)^0.5
      message("Canopy Rugosity")
      print(rugosity)
@@ -424,14 +604,11 @@ calc_rugosity <- function(df, m, filename) {
      
      jess.rugosity = sd(df$max.ht)
      
+     # sum(el_CP(CP(p)+k-1,:).*((z_CP(CP(p)+k-1,:)-heightBin).^2))/sum(el_CP(CP(p)+k-1,:))
+     
      
      message("Surface Rugosity--TopRugosity")
      print(jess.rugosity)
-     
-     #Rumple is the ratio of top rugoisty to ground area.
-     rumple = jess.rugosity / transect.length
-     message("Rumple--surface rugosity/ground area")
-     print(rumple)
      
      variable.list <- list(plot = filename,
                            mean.height = mean.height,
