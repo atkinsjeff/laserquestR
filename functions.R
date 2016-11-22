@@ -13,7 +13,7 @@ library(ggplot2)
 # Import PCL data function
 read.pcl <- function(data_dir, filename) {
      f <- file.path(data_dir, filename)
-     df <- read.csv(f, header=FALSE, col.names = c("return_distance", "intensity"), blank.lines.skip = FALSE)
+     df <- read.csv(f, header=FALSE, col.names = c("return_distance", "intensity"), blank.lines.skip = FALSE)      #was originally false
      df$index <- as.numeric(rownames(df))
      df = df[,c(3, 1, 2)]
      df
@@ -456,7 +456,7 @@ make_summary_matrix <- function(df, m) {
 
     
      
-     #need to fix the missing first here
+   
      p$mean.ht[is.na(p$mean.ht)] <- 0
      p$sd.ht[is.na(p$sd.ht)] <- 0
      p$max.ht[is.na(p$max.ht)] <- 0
@@ -565,11 +565,11 @@ calc_rugosity <- function(df, m, filename) {
      
      super.size[is.na(super.size)] <- 0
      print(super.size)
-     std.std = sum(super.size$std.bin.squared)
-     std.std = std.std/transect.length
+     std.std = mean(super.size$std.bin.squared)
+     #std.std = std.std/transect.length
      
-     mean.std = sum(super.size$std.bin)
-     mean.std = mean.std/transect.length
+     mean.std = mean(super.size$std.bin)
+     #mean.std = mean.std/transect.length
      
      # super.size$std.std.pre <- (super.size$std.bin^2) / transect.length 
      # super.size$std.std.pre[is.na(super.size$std.std.pre)] <- 0
@@ -606,6 +606,7 @@ calc_rugosity <- function(df, m, filename) {
      
      # sum(el_CP(CP(p)+k-1,:).*((z_CP(CP(p)+k-1,:)-heightBin).^2))/sum(el_CP(CP(p)+k-1,:))
      
+     rumple = 
      
      message("Surface Rugosity--TopRugosity")
      print(jess.rugosity)
@@ -626,8 +627,7 @@ calc_rugosity <- function(df, m, filename) {
                            std.std = std.std,
                            mean.std = mean.std,
                            rugosity = rugosity,
-                           top.rugosity = jess.rugosity,
-                           rumple = rumple)
+                           top.rugosity = jess.rugosity)
     
      
      #now to write to csv
@@ -639,7 +639,7 @@ calc_rugosity <- function(df, m, filename) {
 write.pcl.to.csv <- function(variable.list, filename) {
      
      filename2 <- paste(filename, ".csv", sep="")
-     write.csv(variable.list, file = filename2)
+     write.csv(variable.list,file.path(output_directory, filename2))
 }
 
      
