@@ -1,0 +1,65 @@
+    %Outs: d=hit grid (hits distributed in the vertical dimension
+    %c=Cumulative hits as you go up the grid
+    %phi=Percent saturation at each height
+    %dee=ln of saturation percentage (phi) for the bin below divided by current bin
+    %fee=Percent of dee at a certain level
+    %el=Percent contribution to the LAI at each level
+    %N=?? (generated in Ntest)
+    %distSTD=
+    %cvr_fracOut=Percentage of transects with no sky hits
+    %sky_fracOut=Percentage of transects with sky hits
+    %NshortSegsOut
+    %NoSky=Index of transects that do not contain sky hits
+    %Sky=Index of transects that contain sky hits
+    %binIndex
+    %bindat
+    %Ncol
+    %stdCol
+    %meanCol
+
+
+%Y=grid of values to identify locations with
+    Y = load([outpath 'Y.txt']);
+    %d=hit grid
+    d = load([outpath 'd.txt']);
+    %c=Cumulative hits as you go up the grid
+    c = load([outpath 'c.txt']);
+    %phi=Percent saturation at each height
+    phi = load([outpath 'phi.txt']);
+    %dee=ln of saturation percentage (phi) for the bin below divided by current bin
+    dee = load([outpath 'dee.txt']);
+    %fee=Percent of dee at a certain level
+    fee = load([outpath 'fee.txt']);
+    %el=Percent contribution to the LAI at each level
+    el = load([outpath 'el.txt']);
+    %z=Vertical bin center height
+    z = load([outpath 'z.txt']);  
+%     NcolOut = load([data_path 'NcolOut.txt']');
+
+
+for k=1:length(maxel) %length maxel is the length of the permanent plot (length of the transect) 
+
+
+if maxel(k)>0 %ie: if the area has some canopy
+                        topel_A60m(k)=find(el_CP(CP(p)+k-1,:)>0,1,'last'); %last vertical bin with leaf area >0.1
+                        modebin = find(el_CP(CP(p)+k-1,:)== maxel(k),1,'last'); %height of peak LAI in column
+                        heightBin = sum(el_CP(CP(p)+k-1,:).*z_CP(CP(p)+k-1,:))/sum(el_CP(CP(p)+k-1,:));%the mean column leaf height
+                        stdBin = sum(el_CP(CP(p)+k-1,:).*((z_CP(CP(p)+k-1,:)-heightBin).^2))/sum(el_CP(CP(p)+k-1,:));%std of leaf heights in column
+
+                        modeEl(current_plot) = modeEl(current_plot)+ modebin/length(maxel); %accumulates mean  height of peak LAI for the plot
+                        mode2(current_plot) = mode2(current_plot)+modebin*modebin/length(maxel); %accumulates the square of height of peak LAI in plot
+                        meanHeight(current_plot) = meanHeight(current_plot)+ heightBin/length(maxel); %accumulates the mean column leaf height
+
+                        kixi(current_plot) = kixi(current_plot)+ sum(el_CP(CP(p)+k-1,:).*z_CP(CP(p)+k-1,:));
+                        kixi2(current_plot) = kixi2(current_plot)+ sum(el_CP(CP(p)+k-1,:).*z_CP(CP(p)+k-1,:).*z_CP(CP(p)+k-1,:)); 
+                        sumki(current_plot) = sumki(current_plot)+ sum(el_CP(CP(p)+k-1,:)); % plot accumulated ground LAI
+
+                        stdStd(current_plot) = stdStd(current_plot)+stdBin*stdBin/length(maxel); %accumulates the square of std of leaf heights in plot
+                        meanStd(current_plot) = meanStd(current_plot)+stdBin/length(maxel); %accumulates the mean of std dev of leaf heights in plot
+
+porosity = sum(sum(HitGrid(2:a(1,1),:)==0))/(a(1,1)*a(1,2)); %proportion of bins in canopy cross section that are empty
+
+%     gap_frac(r,:) = [sum(HitGrid(r,:)==0)/Tlength]; %fraction of 1m wide horizontal slices through each plot that have zero LiDAR hits.
+
+% top_rug = std(top_el); %height variability of outer canopy surface
+% deep_gap = sum(top_el<3); %counts the number of gaps that penetrate to ~forest floor

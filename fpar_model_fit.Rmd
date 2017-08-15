@@ -1,0 +1,343 @@
+---
+title: "JeffPar Model fitting"
+author: "Jeff Atkins"
+date: "July 14, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r data-import, echo = FALSE, warning=FALSE, message=FALSE}
+#
+require(plyr)
+require(ggplot2)
+require(dplyr)
+require(vegan)
+require(ggrepel)
+require(magrittr)
+require(nlstools)
+
+#adding in palette
+library(RColorBrewer)
+darkcols <- brewer.pal(10, "Dark2")
+
+#Data import
+plot.fpar <- read.csv("laserquest_master_fpar_plot.csv")
+
+# designate light regime based on aPAR or above canopy PAR
+plot.fpar$regime <- ifelse(plot.fpar$aPAR_mean >= 1000, "high",
+                             "low")
+
+plot.fpar$regime <- as.factor(plot.fpar$regime)
+
+### Modeling section
+#Subset data for modelling
+high <- subset(plot.fpar, aPAR_mean >= 1000)
+low <- subset(plot.fpar, aPAR_mean < 1000)
+
+#new.master <- read.csv("laserquest_plot_means_with_fPAR.CSV")
+#custom plot theme for all
+theme_new <- function(base_size = 12){
+     theme_bw(base_size = base_size) %+replace%
+          theme(
+               #line = element_line(colour="black"),
+               #text = element_text(colour="black"),
+               #axis.text = element_text(colour="black", size=8),
+               #strip.text = element_text(size=12),
+               #legend.key=element_rect(colour=NA, fill =NA),
+               panel.grid = element_blank(),   
+               # panel.border = element_blank(),
+               panel.background = element_rect(fill = "white", colour = "white"), 
+               strip.background = element_rect(fill = NA),
+               axis.text = element_text( size = 14),
+               axis.ticks.x = element_blank(),
+               axis.ticks.y = element_blank(),
+               axis.title  = element_text( size = 16, margin = margin(12, unit = "cm"))
+          )
+     
+}
+# custom plot label
+
+vai.label =  expression(paste(VAI~(m^2 ~m^-2)))
+lai.label =  expression(paste(LAI~(m^2 ~m^-2)))
+log.lai.label = expression(paste(log~( LAI~(m^2 ~m^-2))))
+r.label = expression("R"[C])
+fpar.label = expression(paste(italic("f"), "PAR"))
+
+```
+
+## Rectangular Hyperbola Option 1
+Focusing on model fit for plot means for fPAR and Rumple under high light conditions.
+First with the equation $y = a*x/b+x$
+
+
+```{r one1, echo = FALSE, messages = FALSE}
+
+# RUMPLE
+#HIGH
+y <- high$fPAR_mean
+x <- high$rumple_mean
+
+
+high.rumple <- nls(y ~ (a * x) / (b + x), start = list(a = 1, b = 1))
+#summary(high.rumple)
+message('Model Coefficients')
+coef(high.rumple)
+message("AIC")
+AIC(high.rumple)
+
+
+RSS <- sum(residuals(high.rumple)^2)
+TSS <- sum((y - mean(y))^2)
+R.square <- 1 - (RSS/TSS)
+
+R.square <- paste("R^2 == ", round(R.square, 3))
+# 
+# message('R squared = ')
+# print(R.square)
+
+fpar.high.rumple <- function(x) {(2.420 * x) / (10.672 + x) }
+# fpar.high.rumple2 <- function(x) {2.849 + (-1.660 * x) / ( -0.821 + x)}
+# fpar.high.rumpl3 <- function(x) { 1 / (1 + exp(-0.7972 * (x - 2.5677)))}
+ggplot(high, aes(x = rumple_mean, y = fPAR_mean))+
+     geom_point(size = 3, shape = 21)+
+     theme_new()+
+     xlim(c(0,15))+
+     scale_y_continuous(breaks = seq(0, 1, 0.5), limits = c(0, 1))+
+     xlab("Rumple")+
+     ylab(fpar.label)+
+     stat_function(fun = fpar.high.rumple, col = "blue", size = 1)+
+     annotate("text", x = 10, y = 0.4, label =  R.square, parse = TRUE)
+
+nr <- nlsResiduals(high.rumple)
+plot(nr, which = 0)
+plot(nr, which = 5)
+plot(nr, which = 6)
+
+```
+\newpage
+
+## Rectangular Hyperbola Option 2
+
+Using the equation $y = a + b*x/c+x$
+
+```{r two, echo = FALSE, messages = FALSE}
+high.rumple2 <- nls(y ~ a + (b * x) / (c + x), start = list(a = 0, b = 0.1, c = 0.1))
+#summary(high.rumple2)
+message("Model Coefficients")
+coef(high.rumple2)
+message("AIC")
+AIC(high.rumple2)
+
+RSS <- sum(residuals(high.rumple2)^2)
+TSS <- sum((y - mean(y))^2)
+R.square <- 1 - (RSS/TSS)
+
+R.square <- paste("R^2 == ", round(R.square, 3))
+# 
+# 
+# message("R squared =")
+# print(R.square)
+a <- coef(high.rumple2)[1]
+b <- coef(high.rumple2)[2]
+c <- coef(high.rumple2)[3]
+
+fpar.high.rumple2 <- function(x) {a + (b * x) / ( c + x)}
+ggplot(high, aes(x = rumple_mean, y = fPAR_mean))+
+     geom_point(size = 3, shape = 21)+
+     theme_new()+
+     xlim(c(0,15))+
+     scale_y_continuous(breaks = seq(0, 1, 0.5), limits = c(0, 1))+
+     xlab("Rumple")+
+     ylab(fpar.label)+
+     stat_function(fun = fpar.high.rumple2, col = "blue", size = 1)+
+     annotate("text", x = 10, y = 0.4, label =  R.square, parse = TRUE)
+
+nr <- nlsResiduals(high.rumple2)
+plot(nr, which = 0)
+plot(nr, which = 5)
+plot(nr, which = 6)
+```
+\newpage
+
+## Sigmoidal Function
+
+Using the equation:  $y = 1/(1 + exp(a * (x - b)))$
+
+```{r pressure, echo=FALSE, messages = FALSE}
+high.rumple3 <- nls(y ~ (1 / (1 + exp(-a * (x - b)))), start = list(a = 1, b = 1))
+message("Model Coefficients")
+coef(high.rumple3)
+message("AIC")
+AIC(high.rumple3)
+
+
+RSS <- sum(residuals(high.rumple3)^2)
+TSS <- sum((y - mean(y))^2)
+R.square <- 1 - (RSS/TSS)
+
+
+R.square <- paste("R^2 == ", round(R.square, 3))
+
+
+a <- coef(high.rumple3)[1]
+b <- coef(high.rumple3)[2]
+
+fpar.high.rumple3 <- function(x) {1 / (1 + exp(-a * (x - b)))}
+
+ggplot(high, aes(x = rumple_mean, y = fPAR_mean))+
+     geom_point(size = 3, shape = 21)+
+     theme_new()+
+     xlim(c(0,15))+
+     scale_y_continuous(breaks = seq(0, 1, 0.5), limits = c(0, 1))+
+     xlab("Rumple")+
+     ylab(fpar.label)+
+     stat_function(fun = fpar.high.rumple3, col = "blue", size = 1)+
+     annotate("text", x = 10, y = 0.4, label =  R.square, parse = TRUE)
+
+nr <- nlsResiduals(high.rumple3)
+plot(nr, which = 0)
+plot(nr, which = 5)
+plot(nr, which = 6)
+```
+
+\newpage
+
+## Logistic Growth Model
+
+Using the equation:  $y = a / (1 + b * exp(-k * x)$
+
+```{r four, echo=FALSE, messages = FALSE}
+high.rumple4 <- nls(y ~ a / (1 + b * exp(-k * x)), start = list(a = 1, b = 1, k = 1))
+message("Model Coefficients")
+coef(high.rumple4)
+message("AIC")
+AIC(high.rumple4)
+
+
+RSS <- sum(residuals(high.rumple4)^2)
+TSS <- sum((y - mean(y))^2)
+R.square <- 1 - (RSS/TSS)
+#R.square <- as.character(round(R.square, 3)
+
+R.square <- paste("R^2 == ", round(R.square, 3))
+# message("R squared =")
+# print(R.square)
+
+a <- coef(high.rumple4)[1]
+b <- coef(high.rumple4)[2]
+k <- coef(high.rumple4)[3]
+
+fpar.high.rumple4 <- function(x) {a / (1 + b * exp(-k * x))}
+
+ggplot(high, aes(x = rumple_mean, y = fPAR_mean))+
+     geom_point(size = 3, shape = 21)+
+     theme_new()+
+     xlim(c(0,15))+
+     scale_y_continuous(breaks = seq(0, 1, 0.5), limits = c(0, 1))+
+     xlab("Rumple")+
+     ylab(fpar.label)+
+     stat_function(fun = fpar.high.rumple4, col = "blue", size = 1)+
+     annotate("text", x = 10, y = 0.4, label =  R.square, parse = TRUE)
+
+nr <- nlsResiduals(high.rumple4)
+plot(nr, which = 0)
+plot(nr, which = 5)
+plot(nr, which = 6)
+```
+
+
+\newpage
+
+## Logarithmic Model
+
+Using the equation:  $y = a + b ln(x)$
+
+```{r five, echo=FALSE, messages = FALSE}
+high.rumple5 <- nls(y ~ a + b * log(x), start = list(a = 1, b = 1))
+message("Model Coefficients")
+coef(high.rumple5)
+message("AIC")
+AIC(high.rumple5)
+
+
+RSS <- sum(residuals(high.rumple5)^2)
+TSS <- sum((y - mean(y))^2)
+R.square <- 1 - (RSS/TSS)
+#R.square <- as.character(round(R.square, 3)
+
+R.square <- paste("R^2 == ", round(R.square, 3))
+# message("R squared =")
+# print(R.square)
+
+a <- coef(high.rumple5)[1]
+b <- coef(high.rumple5)[2]
+
+
+fpar.high.rumple5 <- function(x) {a + b * log(x)}
+
+ggplot(high, aes(x = rumple_mean, y = fPAR_mean))+
+     geom_point(size = 3, shape = 21)+
+     theme_new()+
+     xlim(c(0,15))+
+     scale_y_continuous(breaks = seq(0, 1, 0.5), limits = c(0, 1))+
+     xlab("Rumple")+
+     ylab(fpar.label)+
+     stat_function(fun = fpar.high.rumple5, col = "blue", size = 1)+
+     annotate("text", x = 10, y = 0.4, label =  R.square, parse = TRUE)
+
+nr <- nlsResiduals(high.rumple5)
+plot(nr, which = 0)
+plot(nr, which = 5)
+plot(nr, which = 6)
+```
+
+\newpage
+
+## Rise to Max, Raise the Roof
+
+Using the equation:  $y = a * (1 - exp(-b * x)) + c * (1 - exp(-d * x))$
+
+```{r six, echo=FALSE, messages = FALSE}
+
+high.rumple6 <- nls(y ~ (a * (1 - exp(b * x))) + (c * (1 - exp(d * x))), start = c(a = 1, b = 1, c = 1, d = -1), control = nls.control(warnOnly = TRUE))
+message("Model Coefficients")
+coef(high.rumple6)
+message("AIC")
+AIC(high.rumple6)
+
+
+RSS <- sum(residuals(high.rumple6)^2)
+TSS <- sum((y - mean(y))^2)
+R.square <- 1 - (RSS/TSS)
+#R.square <- as.character(round(R.square, 3)
+
+R.square <- paste("R^2 == ", round(R.square, 3))
+# message("R squared =")
+# print(R.square)
+
+a <- coef(high.rumple6)[1]
+b <- coef(high.rumple6)[2]
+c <- coef(high.rumple6)[3]
+d <- coef(high.rumple6)[4]
+
+
+fpar.high.rumple6 <- function(x) {a * (1 - exp(b * x)) + c * (1 - exp(d * x))}
+
+ggplot(high, aes(x = rumple_mean, y = fPAR_mean))+
+     geom_point(size = 3, shape = 21)+
+     theme_new()+
+     xlim(c(0,15))+
+     scale_y_continuous(breaks = seq(0, 1, 0.5), limits = c(0, 1))+
+     xlab("Rumple")+
+     ylab(fpar.label)+
+     stat_function(fun = fpar.high.rumple6, col = "blue", size = 1)+
+     annotate("text", x = 10, y = 0.4, label =  R.square, parse = TRUE)
+
+nr <- nlsResiduals(high.rumple6)
+plot(nr, which = 0)
+plot(nr, which = 5)
+plot(nr, which = 6)
+```

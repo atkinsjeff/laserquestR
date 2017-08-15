@@ -1,0 +1,27 @@
+35 -1 all good
+done 35 -2 I double tapped some. Need to remove markers. Take the first of each doubletap
+
+Plot 35 go t fucked up and only 4 transects ran
+
+Plot sequence goes 35_1 for most south to 35_5 most north. GPS in the SE corn plots are 40 x 100 m
+with 40 m east to west
+
+done 01 - 04 There is a double tap marker right before the actual fourth marker. There is a problem area in the data there likelydue to fallen log.
+Maybe lose a couple of seconds of data tthere.
+
+done deleted first marker so the code kills all before it. 01-03 is 50 m too long. First segment is the one to lose
+
+The light msmts are off. 
+
+01-1 is also 02-6 because they share a border
+
+done added marker at 7347 02-3 has an extra fourth marker and is mising a third
+
+done 04_4 needsfirstmarker and there is an accidental marker in after the second marker
+
+done 06_5 has an extra marker. ther ewere also a bees in segment 4-5 and i moved real fast.
+
+done 06_6 has an additional segment to fold in as it was short one.
+
+left it 05-1 has one too many
+

@@ -6,6 +6,8 @@ library(plyr)
 library(dplyr)
 library(magrittr)
 library(ggplot2)
+library(tools)
+library(readr)
 
 
 
@@ -170,6 +172,8 @@ csc_metrics <- function(df, filename) {
      z <- df
      z <- subset(z, return_distance >= 0)
      
+     #for the cover fraction calculation, number of markers - 1
+     correction.coef <- length(which((df$return_distance <= -9999)))
      
      mean.return.ht = mean(z$return_distance, na.rm = TRUE)
      message("Mean Return Height (m) -- meanHeight in old code")
@@ -179,7 +183,7 @@ csc_metrics <- function(df, filename) {
      message("Standard Deviation of Canopy Height returns-- meanStd in old code")
      print(sd.ht)
      
-     sky.fraction = (1 - (length(which(df$can_hit == TRUE)) / length(df$return_distance))) * 100
+     sky.fraction = (1 - (length(which(df$can_hit == TRUE)) / (length(df$return_distance) - correction.coef) )) * 100
      message("Sky Fraction (%)")
      print(sky.fraction)
      
@@ -220,9 +224,9 @@ make_matrix_part_one <- function(df) {
      # zzz <-setNames(aggregate(return_distance ~ xbin, data = z, FUN = sd), c("xbin", "sd.ht"))
      # zzzz <- setNames(aggregate(return_distance ~ xbin, data = z, FUN = max), c("xbin", "max.ht"))
      
-     # number of lidar returns for entire column
-     l <- setNames(aggregate(index ~ xbin, data = df, FUN = length), c("xbin", "lidar.pulses"))
-     print(l)
+     # # number of lidar returns for entire column
+     # l <- setNames(aggregate(index ~ xbin, data = df, FUN = length), c("xbin", "lidar.pulses"))
+     #print(l)
      # number of return per x,z bin in the canopy
      m <- setNames(aggregate(return_distance ~ xbin + zbin, data = df, FUN = length), c("xbin", "zbin","bin.hits"))
      m <- m[!m$zbin < 0, ]
@@ -232,12 +236,14 @@ make_matrix_part_one <- function(df) {
      
      # number of canopy returns in column
      k <- setNames(aggregate(can_hit ~ xbin, data = df, FUN = sum), c("xbin", "can.hits"))
-     print(k)
+     
+     
+     #print(k)
      #p <- Reduce(function(x, y) merge(x,y, all = TRUE), list(m, l, n, k))
-      p <- merge(l, m, by = c("xbin"), all = TRUE)
-      p <- merge(p, n, by = c("xbin"), all = TRUE)
+      p <- merge(m, n, by = c("xbin"), all = TRUE)
       p <- merge(p, k, by = c("xbin"), all = TRUE)
       
+      p$lidar.pulses <- p$can.hits + p$sky.hits
      # p <- merge(p, zz, by = c("xbin"), all = TRUE)
      # p <- merge(p, zzz, by = c("xbin"), all = TRUE)
      # p <- merge(p, zzzz, by = c("xbin"), all = TRUE)
@@ -307,12 +313,13 @@ normalize_pcl_one <-  function(df) {
 }
 
 normalize_pcl_two <- function(df) {
-
+     # need to define what phi actually is inverted gap probability according to Atticus
      eq1 = (df$can.hits - df$hit.count) / df$can.hits
      eq2 = ((df$can.hits + 1) - df$hit.count) / (df$can.hits + 1)
      
      # if can.hits and lidar.pulses are equal, then canopy is saturated
      
+     #df <- transform(df, phi = ifelse(lidar.pulses == can.hits, eq1, eq2))
      df <- transform(df, phi = ifelse(lidar.pulses == can.hits, eq1, eq2))
 }
 
@@ -346,10 +353,89 @@ normalize_pcl_three <- function(df) {
      # now to make fee a percentage of the percent hits at that level
      eq.fee = df$dee / df$sum.dee
      
+     # for all columns where dee is > 0 i.e. that is saturated
+     df <- transform(df, fee = ifelse(sum.dee > 0, eq.fee, 0))
+     return(df)
+}
+
+
+# TLS light correction correction? Maybe. It is a test
+#### light saturation correction
+normalize_tls_one <-  function(df) {
+     # for loop for this jenk
+     # what we are doing is counting up the number of canopy hits to an x,z point in the canopy
+     
+     # first we sort
+     df <- df[with(df, order(xbin, zbin)), ]
+     
+     df$hit.count <- 0   #creates and empty column of zeros
+     for (i in 1:nrow(df)) {
+          x.counter = 1  #a counter! woohoo
+          
+          for(j in 2:nrow(df)){
+               if(df$xbin[j] == x.counter ){
+                    
+                    df$hit.count[j] = df$hit.count[j-1] + df$bin.hits[j]
+                    
+               }else {
+                    x.counter = x.counter + 1 
+                    next
+               }
+               next
+          }
+     }
+     return(df)
+}
+
+normalize_tls_two <- function(df) {
+     # this assumes everything is saturated, which is of course not true.
+     # 
+     df$phi <- ((df$can.hits + 1) - df$hit.count) / df$can.hits
+     
+     eq1 = (df$can.hits - df$hit.count) / df$can.hits
+     eq2 = ((df$can.hits + 1) - df$hit.count) / (df$can.hits + 1)
+     
+     # if can.hits and lidar.pulses are equal, then canopy is saturated
+     
+     df <- transform(df, phi = eq2)
+}
+
+normalize_tls_three <- function(df) {
+     
+     df$dee <- 0   #creates and empty column of zeros
+     for (i in 1:nrow(df)) {
+          x.counter = 1  #a counter! woohoo
+          
+          for(j in 2:nrow(df)){
+               if(df$phi[j-1] > 0 && df$phi[j] > 0 && df$xbin[j] == x.counter ){
+                    
+                    df$dee[j] = log(df$phi[j-1] / df$phi[j])
+                    
+               }else {
+                    df$dee[j] = 0
+                    x.counter = x.counter + 1 
+                    next
+               }
+               next
+          }
+     }
+     
+     # now to sum up dee to make sum.dee the %total adjusted hits in the column
+     q <- setNames(aggregate(dee ~ xbin, data = df, FUN = sum), c("xbin", "sum.dee"))
+     df$sum.dee <- q$sum.dee[match(df$xbin, q$xbin)]
+     
+     
+     
+     
+     # now to make fee a percentage of the percent hits at that level
+     eq.fee = df$dee / df$sum.dee
+     
      # for all columns where dee is >0 i.e. that is saturated
      df <- transform(df, fee = ifelse(sum.dee > 0, eq.fee, 0))
      return(df)
 }
+               
+
      # 
      # if(df$lidar.pulses == df$can.hits){
      #      df$phi = (df$can.hits - df$hit.count) / df$can.hits
@@ -386,7 +472,7 @@ calc_vai <- function(df) {
      # this should be how much cover (cvr) is in each, x,z bin index value
      df$cvr <- (df$bin.hits / df$can.hits) 
      
-     # olai has a maxium value of 8. eq one is for use on areas that are not saturated
+     # olai has a maximum value of 8. eq one is for use on areas that are not saturated
      eq.olai = (log(1.0 - (df$can.hits/df$lidar.pulses)*0.9817)  * -1) /0.5
      
      ##### you need to do this for all of those columns! olai by column
@@ -405,6 +491,34 @@ calc_vai <- function(df) {
      df[is.na(df)] <- 0
      return(df)
  
+}
+
+### alternate vai
+#####this series of functions creates VAI
+calc_vai_alt <- function(df) {
+     
+     # this should be how much cover (cvr) is in each, x,z bin index value
+     df$cvr <- (df$bin.hits / df$can.hits) 
+     
+     # olai has a maxium value of 8. eq one is for use on areas that are not saturated
+     # eq.olai = (log(1.0 - (1)*0.9817)  * -1) /0.5
+     
+     ##### you need to do this for all of those columns! olai by column
+     # for all columns that are less than saturated, adjust olai
+     df <- transform(df, olai =  8)
+     
+     # now make adjusted vai
+     eq.vai1 = df$olai * df$fee
+     eq.vai2 = df$olai * df$cvr
+     df <- transform(df, vai = ifelse(fee > 0,  eq.vai1, eq.vai2 ))
+     
+     # df[is.na(df)] <- 0
+     
+     
+     # df$vai <- (log(1.0 - df$cvr*0.9817)  * -1) /0.5
+     df[is.na(df)] <- 0
+     return(df)
+     
 }
 
 #############################
@@ -429,7 +543,7 @@ make_summary_matrix <- function(df, m) {
      
      # maximum value of VAI in the column
      d <- setNames(aggregate(vai ~ xbin, data = m, FUN = max, na.rm = FALSE, na.action = 'na.pass'), c("xbin", "max.vai"))
-     print(d)
+     
      # sum of VAI in column
      e <- setNames(aggregate(vai ~ xbin, data = m, FUN = sum, na.rm = FALSE, na.action = 'na.pass'), c("xbin", "sum.vai"))
      
@@ -440,12 +554,12 @@ make_summary_matrix <- function(df, m) {
      g <- m$zbin[match(d$max.vai, m$vai)]  
      g <- data.frame(g)
      colnames(g) <- c("max.vai.z")
-     print(g)
+     #print(g)
      
      #mean column leaf height that is the "heightBin" from Matlab code
      # first we make el
      #m$el <- (m$vai / m$sum.vai) * 100
-     m$vai.z <- m$vai * (m$zbin +0.5)
+     m$vai.z <- m$vai * (m$zbin + 0.5)
      h <- setNames(aggregate(vai.z ~ xbin, data = m, FUN = sum, na.rm = FALSE,  na.action = 'na.pass'), c("xbin", "vai.z.sum"))
            
   
@@ -476,7 +590,116 @@ make_summary_matrix <- function(df, m) {
      return(p)
 }
 
+calc_tls_vai <- function(m) {
+     m$vai <- (log(1.0 - (m[[3]])*0.9817)  * -1) /0.5
+     #m[is.na(m)] <- 0
+     m$vai[is.nan(m$vai)] <- 0
+     return(m)
+}
 
+calc_tls_mean_leaf_ht <- function(m){
+     #mean column leaf height that is the "heightBin" from Matlab code
+     
+     m$vai.z <- m$vai * (m$zbin +0.5)
+     h <- setNames(aggregate(vai.z ~ xbin, data = m, FUN = sum, na.rm = FALSE,  na.action = 'na.pass'), c("xbin", "vai.z.sum"))
+     
+     e <- setNames(aggregate(vai ~ xbin, data = m, FUN = sum, na.rm = FALSE, na.action = 'na.pass'), c("xbin", "sum.vai"))
+     
+     # this section joins all these guys together
+     p <- join_all(list(m, e, h), by = "xbin", type = "full")
+     
+     
+     p$height.bin <- p$vai.z.sum / p$sum.vai
+     return(p)
+     
+}
+
+calc_tls_std_bin <- function(m){
+     df <- m
+     # first we create the std.bin numerator
+     df$std.bin.num <- ((df$zbin - df$height.bin)^2) * df$vai
+     
+     j <- aggregate(std.bin.num ~ xbin, data = df, FUN = sum, na.rm = FALSE, na.action = 'na.pass')
+     #print(j)
+     j[is.na(j)] <- 0
+     
+     super.size <- merge(m, j, by = "xbin")
+     #print(super.size[5,])
+
+     super.size$std.bin <- super.size$std.bin.num / super.size$sum.vai
+
+     super.size$std.bin.squared <- (super.size$std.bin^2)
+
+     super.size[is.na(super.size)] <- 0
+     #print(super.size)
+
+     std.std = mean(super.size$std.bin.squared)
+     #std.std = std.std/transect.length
+
+     mean.std = mean(super.size$std.bin)
+     #mean.std = mean.std/transect.length
+
+
+     message("Square of leaf height variance (stdStd from old script)")
+     print(std.std)
+
+
+     message("Mean Standard deviation of leaf heights -- meanStd")
+     print(mean.std)
+
+     rugosity = (std.std - mean.std * mean.std)^0.5
+     message("Canopy Rugosity")
+     print(rugosity)
+     
+}
+
+calc_rumple <- function(df){
+     df$rump.diff <- 0
+     
+         for (i in 2:nrow(df)) {
+              
+         df$rump.diff[i] <- abs(ceiling(df$max.ht[i - 1]) - ceiling(df$max.ht[i])) 
+          
+         }
+     #print(df$rump.diff)
+     rumple = (sum(df$rump.diff) + max(df$xbin)) / max(df$xbin)
+     message("Rumple")
+     print(rumple)
+     return(rumple)
+}
+
+calc_gap_fraction <- function(m){
+     transect.length <- max(m$xbin)
+     
+     for(i in 1:nrow(m)){
+          if (m$bin.hits[i] == 0) {
+               m$gap[i] = 1
+          }else{
+               m$gap[i] = 0
+               }
+          }
+     # the thinking here is that you can average across the z plane to get the gap fraction, or the portion of sky/canopy unobstructed by canopy. so if four pixels out of five were empty, that would be 0.8 gap fraction  or the mean(c(1,1,1,1,0))--think of the 1 as gap = true
+     #print(m$gap)
+     gap.list <- setNames(aggregate(gap ~ zbin, data = m, FUN = mean, na.rm = FALSE, na.action = 'na.pass'), c("zbin", "gap.fraction"))
+     #print(gap.list)
+     
+     mean.gap.fraction = mean(gap.list$gap.fraction)
+     message("Mean Gap Fraction ---as error check should be same as porosity")
+     print(mean.gap.fraction)
+     
+     message("now we replace the 0's with 1's so when we take the ln they = 0")
+     gap.list[gap.list == 0] <- 1
+     
+     #print(gap.list)
+     gap.list$ln.gap.fraction <- log(gap.list$gap.fraction)
+     
+     #print(gap.list)
+     clump <- log(mean.gap.fraction) / mean(gap.list$ln.gap.fraction)
+     message("Clumping Index")
+     print(clump)
+     return(clump)
+     
+    }
 ##########################
 ##########################
 # BEGIN COMPLEXITY METRIC CALCS
@@ -515,7 +738,7 @@ calc_rugosity <- function(df, m, filename) {
      
      
      
-     max.el = max(df$max.vai.z)
+     max.el = max(df$max.vai)
      message("Maximum VAI for entire transect -- max el!")
      print(max.el)
      
@@ -564,7 +787,7 @@ calc_rugosity <- function(df, m, filename) {
      super.size$std.bin.squared <- (super.size$std.bin^2)
      
      super.size[is.na(super.size)] <- 0
-     print(super.size)
+     #print(super.size)
      std.std = mean(super.size$std.bin.squared)
      #std.std = std.std/transect.length
      
@@ -606,7 +829,7 @@ calc_rugosity <- function(df, m, filename) {
      
      # sum(el_CP(CP(p)+k-1,:).*((z_CP(CP(p)+k-1,:)-heightBin).^2))/sum(el_CP(CP(p)+k-1,:))
      
-     rumple = 
+    
      
      message("Surface Rugosity--TopRugosity")
      print(jess.rugosity)
@@ -636,16 +859,203 @@ calc_rugosity <- function(df, m, filename) {
      
 }
 
-write.pcl.to.csv <- function(variable.list, filename) {
+combine_variables <- function(variable.list, csc.metrics, rumple, clumping.index){
+     
+     output.variables <- cbind(variable.list, csc.metrics, rumple, clumping.index)
+     return(output.variables)
+     
+     }
+
+write.pcl.to.csv <- function(output.variables, filename) {
      
      filename2 <- paste(filename, ".csv", sep="")
-     write.csv(variable.list,file.path(output_directory, filename2))
+     write.csv(output.variables,file.path(output_directory, filename2))
 }
 
+write.summary.matrix.to.csv <- function(m, filename) {
      
+     filename2 <- paste(filename, "_summary_matrix.csv", sep="")
+     write.csv(m, file.path(output_directory, filename2))
+}
      
+write.hit.matrix.to.csv <- function(m, filename) {
+     m <- m[, c("xbin", "zbin", "vai")]
+     
+     filename2 <- paste(filename, "_hit_matrix.csv", sep="")
+     write.csv(m, file.path(output_directory, filename2))
+}
      
 
- 
+process.single.transect <- function(data_dir, filename){
+     
+     write_out <- FALSE
+     
+     
+     test.data <- read.pcl(data_dir, filename)
+     transect.length <- get.transect.length(test.data)
+     test.2 <- code_hits(test.data)
+     
+     
+     #adjusts by the height of the  user to account for difference in laser height to ground
+     test.2 <- adjust_by_user(test.2, 1.2)
+     
+     # need to code in diagnostic plot better
+     #pcl.diagnostic.plot(test.2, filename)
+     
+     test.data.binned <- split_transects_from_pcl(test.2, transect.length, 10)
+     
+     csc.metrics <- csc_metrics(test.data.binned, filename)
+     
+     m1 <- make_matrix(test.data.binned)
+     
+     m2 <- normalize_pcl_one(m1)
+     m3 <- normalize_pcl_two(m2)
+     m4 <- normalize_pcl_three(m3)
+     
+     m5 <- calc_vai(m4)
+     
+     
+     summary.matrix <- make_summary_matrix(test.data.binned, m5)
+     rumple <- calc_rumple(summary.matrix)
+     clumping.index <- calc_gap_fraction(m5)
+     
+     variable.list <- calc_rugosity(summary.matrix, m5, filename)
+     
+     output.variables <- combine_variables(variable.list, csc.metrics, rumple, clumping.index)
+     print(output.variables)
+     
+     outputname = substr(filename,1,nchar(filename)-4)
+     outputname <- paste(outputname, "output", sep = "_")
+     dir.create("output", showWarnings = FALSE)
+     output_directory <- "./output/"
+     
+     write.pcl.to.csv(output.variables, outputname)
+     write.summary.matrix.to.csv(summary.matrix, outputname)
+     write.hit.matrix.to.csv(m5, outputname)
+     
+     
+     
+     
+     #get filename first
+     plot.filename <- file_path_sans_ext(filename)
+     
+     plot.file.path <- file.path(paste(output_directory, plot.filename, ".png", sep = ""))
+     
+     vai.label =  expression(paste(VAI~(m^2 ~m^-2)))
+     x11(width = 8, height = 6)
+     hit.grid <- ggplot(m5, aes(x = xbin, y = zbin))+ 
+          geom_tile(aes(fill = vai))+
+          scale_fill_gradient(low="white", high="dark green", 
+                              limits=c(0,8.5),
+                              name=vai.label)+
+          #scale_y_continuous(breaks = seq(0, 20, 5))+
+          # scale_x_continuous(minor_breaks = seq(0, 40, 1))+
+          theme(axis.line = element_line(colour = "black"),
+                panel.grid.major = element_blank(),
+                panel.grid.minor = element_blank(),
+                panel.background = element_blank(),
+                axis.text.x= element_text(size = 14),
+                axis.text.y = element_text(size = 14),
+                axis.title.x = element_text(size = 20),
+                axis.title.y = element_text(size = 20))+
+          xlim(0,transect.length)+
+          ylim(0,41)+
+          xlab("Distance along transect (m)")+
+          ylab("Height above ground (m)")+
+          ggtitle(filename)+
+          theme(plot.title = element_text(lineheight=.8, face="bold"))
+     
+     ggsave(plot.file.path, hit.grid)
+}
+
+process.multiple.transects <- function(data_dir){
+     
+     file.names <- dir(data_dir, pattern =".CSV")
+     length(file.names)
+     
+     for(i in 1:length(file.names)){
+          filename <- file.names[i]
+          
+          write_out <- FALSE
+          
+          
+          test.data <- read.pcl(data_dir, filename)
+          transect.length <- get.transect.length(test.data)
+          test.2 <- code_hits(test.data)
+          
+          
+          #adjusts by the height of the  user to account for difference in laser height to ground
+          test.2 <- adjust_by_user(test.2, 1.2)
+          
+          # need to code in diagnostic plot better
+          #pcl.diagnostic.plot(test.2, filename)
+          
+          test.data.binned <- split_transects_from_pcl(test.2, transect.length, 10)
+          
+          csc.metrics <- csc_metrics(test.data.binned, filename)
+          
+          m1 <- make_matrix(test.data.binned)
+          
+          m2 <- normalize_pcl_one(m1)
+          m3 <- normalize_pcl_two(m2)
+          m4 <- normalize_pcl_three(m3)
+          
+          m5 <- calc_vai(m4)
+          
+          
+          summary.matrix <- make_summary_matrix(test.data.binned, m5)
+          rumple <- calc_rumple(summary.matrix)
+          clumping.index <- calc_gap_fraction(m5)
+          
+          variable.list <- calc_rugosity(summary.matrix, m5, filename)
+          
+          output.variables <- combine_variables(variable.list, csc.metrics, rumple, clumping.index)
+          print(output.variables)
+          
+          outputname = substr(filename,1,nchar(filename)-4)
+          outputname <- paste(outputname, "output", sep = "_")
+          dir.create("output", showWarnings = FALSE)
+          output_directory <- "./output/"
+          
+          write.pcl.to.csv(output.variables, outputname)
+          write.summary.matrix.to.csv(summary.matrix, outputname)
+          write.hit.matrix.to.csv(m5, outputname)
+          
+          
+          
+          
+          #get filename first
+          plot.filename <- file_path_sans_ext(filename)
+          
+          plot.file.path <- file.path(paste(output_directory, plot.filename, ".png", sep = ""))
+          
+          vai.label =  expression(paste(VAI~(m^2 ~m^-2)))
+          x11(width = 8, height = 6)
+          hit.grid <- ggplot(m5, aes(x = xbin, y = zbin))+ 
+               geom_tile(aes(fill = vai))+
+               scale_fill_gradient(low="white", high="dark green", 
+                                   limits=c(0,8.5),
+                                   name=vai.label)+
+               #scale_y_continuous(breaks = seq(0, 20, 5))+
+               # scale_x_continuous(minor_breaks = seq(0, 40, 1))+
+               theme(axis.line = element_line(colour = "black"),
+                     panel.grid.major = element_blank(),
+                     panel.grid.minor = element_blank(),
+                     panel.background = element_blank(),
+                     axis.text.x= element_text(size = 14),
+                     axis.text.y = element_text(size = 14),
+                     axis.title.x = element_text(size = 20),
+                     axis.title.y = element_text(size = 20))+
+               xlim(0,transect.length)+
+               ylim(0,41)+
+               xlab("Distance along transect (m)")+
+               ylab("Height above ground (m)")+
+               ggtitle(filename)+
+               theme(plot.title = element_text(lineheight=.8, face="bold"))
+          
+          ggsave(plot.file.path, hit.grid)
+     }
+}
+
 
 

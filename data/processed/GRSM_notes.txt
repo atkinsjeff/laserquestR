@@ -1,0 +1,29 @@
+Great Smoky Mountains National Park
+June, 2016
+
+58E only 30 m
+65C AUGUST
+55W second marker estimated and inserted in post-
+60C  50 m
+61C 50 m
+50E only 30 m
+50W run twice
+
+Have some other data from plot 58 that need cleaning and have no markers
+
+GSRM 55C - there were only three segments flagged so I walked an approx. additional 10 m past last flag, so 10 m outside what would be the transect.
+
+GSRM 55W need to add a second marker halfway between 1st and 3rd. Also had to walk additional 10 m. 
+
+GRSM ("GRSW") 50W second take and C, E ran run in reverse. E cut at 30
+
+GRSM 61 C - ignore/delete typo last point @ end of transect
+
+GRSM66E- ran backwards
+
+GRSM65W- large gap at end of transect
+
+
+65 - reddid center for a thir dplot. first marker didnt ttake
+58w - both run and markers not working. should be good though
+58C -move fourth marker about 1000 places further down

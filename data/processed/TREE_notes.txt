@@ -1,0 +1,33 @@
+TREEHAVEN
+Collected July, 2016
+
+Treehaven -- University of Wisconsin - Stevens Point
+Rhinelander, Wisconsin
+
+Post-Processing Notes
+56E the last 10 m segment was patched in from a second run.
+49W first marker manuallly inserted in post- based on visual estimation
+49C has a really long first section, something to be aware of.
+25E third marker placed halfway between second and fourth
+39C is only 30 m
+42C manually inserted first marker
+45 is a mess due to errors. There are data but they require more work.
+
+
+s
+41 - buffer errors in center and east. Maybe lost some points in East transect?
+47 - center. bbuffer error on third segment center transect
+47E - buffer error last segment
+40 - not run because stupid swamp
+45 - the east tansect needs to be merged. 45W missing marker. There are two runs tomcompare.
+25 - west add middle marker east add middle marker
+39 - center needs is only 30 (no  open par us from plot 25)
+49 - west transect needs starting marker. center needs second marker
+42 - par sensor cloudy, center needs beginning--maybe 1 second in
+46 - no light measurements. lidar looks good but light wind
+56 - east segment I rdid the last segment for attachin.other seeemed short
+52 - no tags on trees, no monumentation
+
+
+
+
