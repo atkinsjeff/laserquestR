@@ -1,0 +1,28 @@
+---
+title: "CSC and fPAR modelling"
+author: "Jeff Atkins"
+date: "May 3, 2017"
+output: pdf_document
+---
+
+```{r importdata}
+master.plot <- read.csv("laserquest_markdown/laserquest_master_fpar_plot.csv")
+
+high <- subset(master.plot, aPAR_mean >= 1000)
+low <- subset(master.plot, aPAR_mean < 1000)
+
+```
+
+## LIGHT Modelling
+
+First we import the data and 
+
+```{r howmany, echo = FALSE}
+print("No. of total plots w/ fPAR data")
+nrow(master.plot)
+print("No. of plots under low light conditions")
+nrow(low)
+print("No. of plots under high light conditions")
+nrow(high)
+```
+

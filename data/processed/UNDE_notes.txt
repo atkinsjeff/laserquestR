@@ -1,0 +1,28 @@
+Post processing notes
+UNDERC collected July, 2016
+University of Notre Dame Ecological Research Center
+Land O'Lakes, Wisconsin
+
+
+Post-processing corrections 
+61E is only 30 m in length do to issues in the plot
+58W is 50 m and I do not recall why
+54W has a duplicate run transect
+54W2 is that duplicate
+54E 1st marker in data was inserted post- based on estimation
+49E a duplicate first marker was removed
+49C is 50 m
+48W a duplicate first marker was removed. Not 100% sure about this transect making note
+48E is also 50 m
+48C duplicate final marker deleted. Missing fourth marker entered as estimate of halfway between third and final
+
+
+
+
+There are also data for  UNDE_50 that Cynthia ran without markers.
+
+Field notes that have been corrected.
+50 - extra marker on west. 
+48w doulbe first marker, went 10 m too far. may need to divide inbetweens to even spacing.
+48 c - remove final marker. add third marker
+45E needs a middle marker

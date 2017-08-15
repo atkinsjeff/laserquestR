@@ -1,0 +1,94 @@
+---
+title: "fPAR Modelling"
+author: "Jeff Atkins"
+date: "February 17, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Modelling fPAR in respect to CSC metrics (i.e. rugosity and porosity)
+
+I have subset the data into direct and diffuse light regimes. The a priori assumption here is based on Beer's Law.
+
+```{r data_read, echo = FALSE}
+master <- read.csv("master_light_csc.csv")
+
+diffuse <- subset(master, master$regime == "diffuse")
+direct <- subset(master, master$regime == "direct")
+```
+
+## Direct Light - fPAR as a function of Rugosity
+
+First, approximating fPAR under direct light using the best model fit:
+
+$fPAR = (a * R_{c}) / (b + R_{c})$
+
+```{r direct, echo = FALSE}
+y <- direct$fPAR
+x <- direct$rugosity
+
+
+m.direct <- nls(y ~ (a * x) / (b + x), start = list(a = 1, b = 1))
+summary(m.direct)
+
+RSS <- sum(residuals(m.direct)^2)
+TSS <- sum((y - mean(y))^2)
+R.square <- 1 - (RSS/TSS)
+message("R squared = ")
+print(R.square)
+
+x11()
+plot(x, y, xlab = "Rugosity", ylab = "fPAR", main = "DIRECT LIGHT")
+a <- coef(m.direct)[1]
+b <- coef(m.direct)[2]
+curve((a * x) / (b + x), col = "blue", add = TRUE)
+```
+
+## Direct Light - fPAR as a function of Porosity
+
+Some model exploration seems to point towards a third-order polynomial being a first-order approximation for model fit. (Can refine later):
+
+```{r porosity, echo = FALSE}
+x <- direct$porosity
+y <- direct$fPAR
+
+rm(a)
+rm(b)
+m.3 <- lm(y ~ poly(x, 3))
+summary(m.3)
+
+m.poly <- function(x) m.3$coefficient[4]
+
+x11()
+plot(x,y, xlab = "porosity", ylab = "fPAR", main = "fPAR and Porosity--direct light")
+lines(sort(x), fitted(m.3)[order(x)], col = "blue")
+```
+
+
+## Residuals analysis one
+
+If we extract the residuals from our fPAR ~ $R_c$ model against canopy porosity, it is mostly noise:
+
+```{r rugosity_resid, echo = FALSE}
+y <- residuals(m.direct)
+x <- direct$porosity
+
+x11()
+plot(x, y, xlab = "Porosity", ylab = "residuals (fPAR ~ Rc model)", main = "Residuals of fPAR ~ Rc against Porosity")
+```
+
+Now extracting residuals from our fPAR ~ Porosity model against canopy rugosity:
+
+```{r porosity_resid, echo = FALSE}
+# residuals of the fPAR ~ porosity model against rugosity
+# 
+
+y <- residuals(m.3)
+x <- direct$rugosity
+
+x11()
+plot(x, y, xlab = "Rugosity", ylab = "residuals (fPAR ~ Pc model)", main = "Residuals of fPAR ~ Pc against Rugosity")
+```
